@@ -61,9 +61,11 @@ class LauncherSwapTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "none of the lawnchair packages"):
             resolve_target(context(FakeAdb()), "lawnchair")
 
-    def test_apply_rejects_missing_launcher_before_install(self):
+    @patch("embertools.shared.launcher_swap.mod._download",
+           side_effect=OSError("network disabled in tests"))
+    def test_apply_reports_download_failure_before_install(self, _dl):
         adb = FakeAdb()
-        with self.assertRaisesRegex(RuntimeError, "isn't installed and has no automatic download"):
+        with self.assertRaisesRegex(RuntimeError, "automatic download failed"):
             LauncherSwap().apply(context(adb, launcher="nova"))
         self.assertEqual(adb.install_calls, [])
 

@@ -50,23 +50,32 @@ LAUNCHERS = {
     "smartlauncher": ["ginlemon.flowerfree", "ginlemon.flowerpro"],
 }
 
-# When the chosen launcher isn't installed, embertools can fetch the open-source
-# ones from F-Droid (HTTPS, F-Droid-signed).  Proprietary launchers have no clean
-# download API -- for those we point the user at a store + `main.py install`.
+# When the chosen launcher isn't installed, embertools can fetch it.  Open-source
+# launchers come from F-Droid (HTTPS, F-Droid build-server signed).  The others
+# have no first-party download API, so we pull the original (developer-signed,
+# not re-signed) APK from APKPure and say so loudly; if that fails we fall back
+# to printing the store + `main.py install` route.
 FDROID_LAUNCHER = {
     "kvaesitso": "de.mm20.launcher2.release",
     "olauncher": "app.olauncher",
 }
 STORE_LAUNCHER = {
-    "nova": ("Nova Launcher", "https://play.google.com/store/apps/details?id=com.teslacoilsw.launcher",
+    # name: (label, package, store url, manual-download url)
+    "nova": ("Nova Launcher", "com.teslacoilsw.launcher",
+             "https://play.google.com/store/apps/details?id=com.teslacoilsw.launcher",
              "https://www.apkmirror.com/apk/teslacoil-software/nova-launcher/"),
-    "lawnchair": ("Lawnchair", "https://play.google.com/store/apps/details?id=app.lawnchair",
+    "lawnchair": ("Lawnchair", "app.lawnchair",
+                  "https://play.google.com/store/apps/details?id=app.lawnchair",
                   "https://github.com/LawnchairLauncher/lawnchair/releases"),
-    "niagara": ("Niagara Launcher", "https://play.google.com/store/apps/details?id=bitpit.launcher",
+    "niagara": ("Niagara Launcher", "bitpit.launcher",
+                "https://play.google.com/store/apps/details?id=bitpit.launcher",
                 "https://www.apkmirror.com/apk/peter-huber/niagara-launcher-fresh-clean/"),
-    "smartlauncher": ("Smart Launcher", "https://play.google.com/store/apps/details?id=ginlemon.flowerfree",
+    "smartlauncher": ("Smart Launcher", "ginlemon.flowerfree",
+                      "https://play.google.com/store/apps/details?id=ginlemon.flowerfree",
                       "https://www.apkmirror.com/apk/smart-launcher-team/"),
 }
+
+_UA = "Mozilla/5.0 (X11; Linux x86_64) embertools"
 
 
 def _fdroid_apk_url(pkg: str) -> str:
@@ -77,35 +86,66 @@ def _fdroid_apk_url(pkg: str) -> str:
     return f"https://f-droid.org/repo/{pkg}_{vc}.apk"
 
 
+def _download(url: str, headers: dict | None = None) -> tuple[bytes, str]:
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=180) as r:
+        disp = r.headers.get("Content-Disposition", "")
+        body = r.read()
+    match = re.search(r'filename="?([^"]+)"?', disp)
+    fname = match.group(1) if match else url.rsplit("/", 1)[-1]
+    return body, fname
+
+
+def _install_bytes(ctx, body: bytes, fname: str) -> None:
+    from embertools.core.sideload import install_path
+
+    suffix = "".join(Path(fname).suffixes) or ".apk"
+    if not any(suffix.endswith(s) for s in (".apk", ".apkm", ".xapk", ".apks")):
+        suffix = ".xapk" if body[:2] == b"PK" else ".apk"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tf:
+        tf.write(body)
+        path = tf.name
+    try:
+        result = install_path(ctx.adb, path, log=ctx.log)
+        if not result.get("ok", True):
+            raise RuntimeError(result.get("error", "install failed"))
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
 def _fetch_launcher(ctx, name: str) -> str | None:
-    """Download and install the launcher `name` if we have a source. Returns the
-    installed package, or None if there's no automatic source."""
+    """Download and install the launcher `name`. Returns the installed package,
+    or None if no source worked / exists."""
     fdroid_pkg = FDROID_LAUNCHER.get(name)
     if fdroid_pkg:
         try:
             url = _fdroid_apk_url(fdroid_pkg)
             ctx.log("source: F-Droid (f-droid.org), APK signed by the F-Droid build server")
             ctx.log(f"fetching {url}")
-            with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as tf:
-                with urllib.request.urlopen(url, timeout=180) as r:
-                    tf.write(r.read())
-                apk = tf.name
-            try:
-                ctx.log("  " + ctx.adb.install(apk, "-r"))
-            finally:
-                Path(apk).unlink(missing_ok=True)
-        except (urllib.error.URLError, OSError) as e:
+            body, fname = _download(url)
+            _install_bytes(ctx, body, fname)
+        except (urllib.error.URLError, OSError, RuntimeError) as e:
             ctx.log(f"could not fetch {name} from F-Droid: {e}")
             return None
         return fdroid_pkg if ctx.adb.pkg_installed(fdroid_pkg) else None
 
     store = STORE_LAUNCHER.get(name)
     if store:
-        label, play, apkmirror = store
-        raise RuntimeError(
-            f"{label} isn't installed and has no automatic download source "
-            f"(proprietary). Install it from {play} , or download the APK from "
-            f"{apkmirror} and run:  python3 main.py install <that.apk>  then re-run.")
+        label, pkg, play, manual = store
+        url = f"https://d.apkpure.com/b/APK/{pkg}?version=latest"
+        try:
+            ctx.log(f"source: APKPure (apkpure.com), original developer-signed APK for {pkg}")
+            ctx.log(f"fetching {url}")
+            body, fname = _download(url, headers={"User-Agent": _UA})
+            if body[:20].lstrip().startswith(b"<"):
+                raise RuntimeError("APKPure returned a web page, not an APK")
+            _install_bytes(ctx, body, fname)
+        except (urllib.error.URLError, OSError, RuntimeError) as e:
+            raise RuntimeError(
+                f"{label} isn't installed and the automatic download failed ({e}). "
+                f"Install it from {play} , or download the APK from {manual} and run:  "
+                f"python3 main.py install <that.apk>  then re-run.")
+        return pkg if ctx.adb.pkg_installed(pkg) else None
     return None
 
 
@@ -140,8 +180,8 @@ def resolve_target(ctx, spec: str, fetch: bool = False) -> tuple[str, str]:
     if not pkg:
         raise RuntimeError(
             f"none of the {spec} packages are installed: {', '.join(candidates)}. "
-            "Install one (or use a launcher embertools can fetch: "
-            f"{', '.join(sorted(FDROID_LAUNCHER))}), then re-run.")
+            "Install one (or pick a launcher embertools can fetch: "
+            f"{', '.join(sorted({*FDROID_LAUNCHER, *STORE_LAUNCHER}))}), then re-run.")
 
     commands = [
         f"cmd package resolve-activity --brief -c android.intent.category.HOME {pkg}",
