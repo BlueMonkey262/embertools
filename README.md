@@ -5,7 +5,8 @@ launcher, strip Amazon apps, block ads, stop forced updates. ADB only; no
 bootloader unlock, no `/system` changes.
 
 > Status: early. Fully tested on the **Fire HD 10 2019 (KFMAWI)** / Fire OS 7.3.3.1.
-> Other Fire OS 7 devices are wired up but need testers. Fire OS 8 is work in progress.
+> Other Fire OS 7 devices are wired up but need testers. Fire OS 8 is rough
+> (fine on 4+ year-old units, expect breakage on the newest).
 
 ## Why
 
@@ -141,11 +142,17 @@ worked. Used Fire tablets are $10-15 on Marketplace or free in Buy Nothing group
 if you want to cover a version you don't own.
 
 **Scope:** Fire OS **5 through 8**, i.e. every Android-based Fire *tablet*
-(roughly 2015-2024 hardware). Fire OS 8 (Android 11) is the newest for tablets
-and has been the ceiling since 2021, so it's in scope, not a moving target. The
-methods are most stable on Fire OS 5-7, where Amazon has stopped patching. Once
-you have a device on an old Fire OS, run `ota_block` and don't let it update, so
-it stays a reference for that version.
+(roughly 2015-2024 hardware), with graded confidence:
+
+- **Fire OS 5-7** (2015-2021): solid. Amazon has stopped patching these and the
+  methods are stable.
+- **Fire OS 8** (2022-2024): rougher. The mechanisms mostly hold, but Amazon
+  still ships updates to the newest units and things break. Rule of thumb: if
+  your tablet is **4+ years old it should be fine**; if it's from the last year
+  or two, expect to fix a few things and file issues.
+
+Once you have a device on an old Fire OS, run `ota_block` and don't let it
+update, so it stays a reference for that version.
 
 Not in scope: Fire OS 14/16 (those are Fire **TV**, renumbered to match the
 Android version), Vega OS (Amazon's Linux OS for cheap devices), and the
