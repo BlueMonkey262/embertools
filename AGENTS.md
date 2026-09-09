@@ -24,7 +24,18 @@ contributions accordingly.
 - `python3 main.py list` against a connected device (or confirm it degrades
   cleanly with none).
 - For a new/changed mod: apply it, check `status`, **revert it**, check `status`
-  again — on a real tablet if you have one, otherwise say so explicitly in the PR.
+  again, on a real tablet.
+
+## Testing is required
+
+A mod PR must be tested on real hardware (apply → status → revert → status). If
+you cannot test on a device:
+
+- the PR **title must start with `[needs testing]`**,
+- the body must list exactly what is unverified and on which models, and
+- do not present it to the user as ready to merge.
+
+Never claim a mod was tested when it wasn't.
 
 ## Opening a pull request — required user quiz
 
@@ -46,7 +57,8 @@ Ask, and wait for answers:
 4. **Reversibility** — how `revert` undoes it, and anything it *can't* undo.
 5. **Blast radius** — worst realistic outcome if it misbehaves on an untested
    device/Fire OS version. Which models/Fire OS versions is it claimed to
-   support, and which were actually tested?
+   support, and which were **actually tested** (apply/status/revert on hardware)?
+   If none were, the PR title starts with `[needs testing]` — tell the user.
 6. **New network calls or downloads** — any URL the change fetches from, and why
    that source is trustworthy.
 7. **New dependencies** — there should be none; if the change adds one, stop and

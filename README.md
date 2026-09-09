@@ -101,6 +101,11 @@ has no drawer icon and a generic label.
 mod and [`docs/DESIGN.md`](docs/DESIGN.md)). Keep it idempotent, reversible, and
 stdlib-only; declare which models it supports.
 
+**Test it on a real tablet** — `apply`, check `status`, `revert`, check `status`
+again — and say so in the PR (model + Fire OS version). If you couldn't test it
+on hardware, that's fine, but the PR title must start with `[needs testing]` and
+say what's unverified, so it isn't merged blind.
+
 **Adding a device:** add it to
 [`embertools/models/registry.py`](embertools/models/registry.py). If it mostly
 works, add its model code to the `supported` list of the relevant mods.
