@@ -15,9 +15,12 @@ settings; just re-run this mod.
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from embertools.core.mod import Mod, Meta, Status
@@ -47,6 +50,64 @@ LAUNCHERS = {
     "smartlauncher": ["ginlemon.flowerfree", "ginlemon.flowerpro"],
 }
 
+# When the chosen launcher isn't installed, embertools can fetch the open-source
+# ones from F-Droid (HTTPS, F-Droid-signed).  Proprietary launchers have no clean
+# download API -- for those we point the user at a store + `main.py install`.
+FDROID_LAUNCHER = {
+    "kvaesitso": "de.mm20.launcher2.release",
+    "olauncher": "app.olauncher",
+}
+STORE_LAUNCHER = {
+    "nova": ("Nova Launcher", "https://play.google.com/store/apps/details?id=com.teslacoilsw.launcher",
+             "https://www.apkmirror.com/apk/teslacoil-software/nova-launcher/"),
+    "lawnchair": ("Lawnchair", "https://play.google.com/store/apps/details?id=app.lawnchair",
+                  "https://github.com/LawnchairLauncher/lawnchair/releases"),
+    "niagara": ("Niagara Launcher", "https://play.google.com/store/apps/details?id=bitpit.launcher",
+                "https://www.apkmirror.com/apk/peter-huber/niagara-launcher-fresh-clean/"),
+    "smartlauncher": ("Smart Launcher", "https://play.google.com/store/apps/details?id=ginlemon.flowerfree",
+                      "https://www.apkmirror.com/apk/smart-launcher-team/"),
+}
+
+
+def _fdroid_apk_url(pkg: str) -> str:
+    with urllib.request.urlopen(
+            f"https://f-droid.org/api/v1/packages/{pkg}", timeout=30) as r:
+        data = json.load(r)
+    vc = data.get("suggestedVersionCode") or data["packages"][0]["versionCode"]
+    return f"https://f-droid.org/repo/{pkg}_{vc}.apk"
+
+
+def _fetch_launcher(ctx, name: str) -> str | None:
+    """Download and install the launcher `name` if we have a source. Returns the
+    installed package, or None if there's no automatic source."""
+    fdroid_pkg = FDROID_LAUNCHER.get(name)
+    if fdroid_pkg:
+        try:
+            url = _fdroid_apk_url(fdroid_pkg)
+            ctx.log("source: F-Droid (f-droid.org), APK signed by the F-Droid build server")
+            ctx.log(f"fetching {url}")
+            with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as tf:
+                with urllib.request.urlopen(url, timeout=180) as r:
+                    tf.write(r.read())
+                apk = tf.name
+            try:
+                ctx.log("  " + ctx.adb.install(apk, "-r"))
+            finally:
+                Path(apk).unlink(missing_ok=True)
+        except (urllib.error.URLError, OSError) as e:
+            ctx.log(f"could not fetch {name} from F-Droid: {e}")
+            return None
+        return fdroid_pkg if ctx.adb.pkg_installed(fdroid_pkg) else None
+
+    store = STORE_LAUNCHER.get(name)
+    if store:
+        label, play, apkmirror = store
+        raise RuntimeError(
+            f"{label} isn't installed and has no automatic download source "
+            f"(proprietary). Install it from {play} , or download the APK from "
+            f"{apkmirror} and run:  python3 main.py install <that.apk>  then re-run.")
+    return None
+
 
 def _activity_from_output(pkg: str, output: str) -> str:
     for line in reversed((output or "").splitlines()):
@@ -63,7 +124,7 @@ def _activity_from_output(pkg: str, output: str) -> str:
     return ""
 
 
-def resolve_target(ctx, spec: str) -> tuple[str, str]:
+def resolve_target(ctx, spec: str, fetch: bool = False) -> tuple[str, str]:
     spec = (spec or "nova").strip()
     if "/" in spec:
         pkg, act = spec.split("/", 1)
@@ -71,13 +132,16 @@ def resolve_target(ctx, spec: str) -> tuple[str, str]:
             act = pkg + act
         return pkg, act
 
-    candidates = LAUNCHERS.get(spec.lower(), [spec])
-    pkg = next((candidate for candidate in candidates if ctx.adb.pkg_installed(candidate)), None)
+    name = spec.lower()
+    candidates = LAUNCHERS.get(name, [spec])
+    pkg = next((c for c in candidates if ctx.adb.pkg_installed(c)), None)
+    if not pkg and fetch:
+        pkg = _fetch_launcher(ctx, name)      # download+install, or raise with guidance
     if not pkg:
         raise RuntimeError(
             f"none of the {spec} packages are installed: {', '.join(candidates)}. "
-            "Install one, then re-run."
-        )
+            "Install one (or use a launcher embertools can fetch: "
+            f"{', '.join(sorted(FDROID_LAUNCHER))}), then re-run.")
 
     commands = [
         f"cmd package resolve-activity --brief -c android.intent.category.HOME {pkg}",
@@ -112,8 +176,8 @@ class LauncherSwap(Mod):
 
     # -- helpers --------------------------------------------------------
 
-    def _target(self, ctx) -> tuple[str, str]:
-        return resolve_target(ctx, ctx.opts.get("launcher", "nova"))
+    def _target(self, ctx, fetch: bool = False) -> tuple[str, str]:
+        return resolve_target(ctx, ctx.opts.get("launcher", "nova"), fetch=fetch)
 
     def _exempt_line(self, ctx) -> str:
         for l in ctx.adb.shell("dumpsys activity | grep -A4 mAllowAppSwitchUids").splitlines():
@@ -154,7 +218,7 @@ class LauncherSwap(Mod):
         return Status(role and bound, f"target={tgt or '?'}; " + ", ".join(bits))
 
     def apply(self, ctx) -> None:
-        pkg, act = self._target(ctx)
+        pkg, act = self._target(ctx, fetch=True)
         ctx.log(f"target launcher: {pkg}/{act}")
         hp = helper_package()
         c = _components(hp)

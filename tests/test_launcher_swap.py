@@ -63,8 +63,8 @@ class LauncherSwapTests(unittest.TestCase):
 
     def test_apply_rejects_missing_launcher_before_install(self):
         adb = FakeAdb()
-        with self.assertRaisesRegex(RuntimeError, "none of the lawnchair packages"):
-            LauncherSwap().apply(context(adb))
+        with self.assertRaisesRegex(RuntimeError, "isn't installed and has no automatic download"):
+            LauncherSwap().apply(context(adb, launcher="nova"))
         self.assertEqual(adb.install_calls, [])
 
     @patch("embertools.shared.launcher_swap.mod.time.sleep")
