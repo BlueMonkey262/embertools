@@ -28,6 +28,7 @@ class Meta:
     reversible: bool = True
     risk: str = "low"                      # low | medium | high
     order: int = 100                       # lower applies earlier in "apply all"
+    options: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -63,8 +64,11 @@ class Context:
     dev: Any
     state: Any
     opts: dict = field(default_factory=dict)
+    on_log: Any = None
 
     def log(self, msg: str) -> None:
+        if self.on_log:
+            self.on_log(msg)
         print(f"  {msg}")
 
     def build_helper(self, helper_dir: Path) -> Path:

@@ -25,6 +25,10 @@ class PrivateDns(Mod):
         reversible=True,
         risk="low",
         order=40,
+        options=[
+            {"name": "dns", "label": "Resolver", "type": "choice",
+             "choices": list(RESOLVERS), "default": "adguard"},
+        ],
     )
 
     def _host(self, ctx) -> str:

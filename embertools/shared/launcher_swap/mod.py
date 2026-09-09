@@ -70,6 +70,12 @@ class LauncherSwap(Mod):
         reversible=True,
         risk="low",
         order=50,
+        options=[
+            {"name": "launcher", "label": "Target launcher", "type": "choice",
+             "choices": list(LAUNCHERS), "default": "nova"},
+            {"name": "reboot", "label": "Reboot after (most reliable)", "type": "bool",
+             "default": True},
+        ],
     )
 
     # -- helpers --------------------------------------------------------

@@ -56,6 +56,10 @@ class Keyboard(Mod):
         reversible=True,
         risk="low",
         order=60,
+        options=[
+            {"name": "keyboard", "label": "Keyboard", "type": "choice",
+             "choices": list(KEYBOARDS), "default": "heliboard"},
+        ],
     )
 
     def _choice(self, ctx) -> tuple[str, str, str]:

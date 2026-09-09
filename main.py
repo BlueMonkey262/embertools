@@ -19,15 +19,16 @@ from pathlib import Path
 
 
 def _launch_ui() -> int:
-    gui = Path(__file__).resolve().parent / "embertools" / "ui_app" / "index.html"
-    if gui.exists():
-        webbrowser.open(gui.as_uri())
+    try:
+        from embertools.ui_app.launch import main as ui_main
+    except ImportError:
+        mock = Path(__file__).resolve().parent / "docs" / "mockups" / "mockup-1.html"
+        print("Could not load the GUI; opening the design mockup instead.")
+        print("Use the CLI:  python3 main.py list")
+        if mock.exists():
+            webbrowser.open(mock.as_uri())
         return 0
-    mock = Path(__file__).resolve().parent / "docs" / "mockups" / "mockup-1.html"
-    print("The embertools GUI isn't built yet — opening the design mockup instead.")
-    print("For now, use the CLI:  python3 main.py list")
-    if mock.exists():
-        webbrowser.open(mock.as_uri())
+    ui_main()
     return 0
 
 

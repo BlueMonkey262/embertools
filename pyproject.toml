@@ -11,11 +11,16 @@ requires-python = ">=3.9"
 license = { text = "MIT" }
 dependencies = []          # stdlib only; a JDK + adb are the real requirements
 
+[project.optional-dependencies]
+# `pip install embertools[gui]` upgrades `--ui` from a browser tab to a native
+# window. Chrome / Edge / Brave / Chromium also give an app window with no install.
+gui = ["pywebview>=5"]
+
 [project.scripts]
 embertools = "embertools.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/OWNER/embertools"   # TODO: set on first push
+Homepage = "https://github.com/BlueMonkey262/embertools"
 
 [tool.setuptools.packages.find]
 include = ["embertools*"]
@@ -24,4 +29,5 @@ include = ["embertools*"]
 "embertools" = [
     "shared/**/*",
     "models/**/*",
+    "ui_app/*",
 ]
