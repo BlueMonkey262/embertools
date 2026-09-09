@@ -70,6 +70,9 @@ APKMirror, then run `launcher_swap`.
 Every mod is idempotent and has `revert`. State is tracked per device in
 `~/.embertools/state/<serial>.json`.
 
+Mods may implement `verify(ctx)` for a post-apply hardware self-check;
+`launcher_swap` uses it to press Home and confirm the target launcher appears.
+
 `install` is also available from the CLI and GUI for regular APKs, split-APK
 archives (`.apkm` / `.xapk` / `.apks`), and directory batches.
 

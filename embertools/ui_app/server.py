@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlparse
 
 from ..core.adb import Adb
 from ..core.device import Device
-from ..core.mod import Context, Status, discover
+from ..core.mod import Context, Mod, Status, discover
 from ..core import sideload
 from ..core.state import State
 
@@ -127,9 +127,16 @@ def _run_job(job_id: str, action: str, mod_name: str, supplied_opts: dict) -> No
         log(f"{action}: {mod_name}")
         if action == "apply":
             mod.apply(ctx)
+            ok = True
+            if type(mod).verify is not Mod.verify:
+                verification = mod.verify(ctx)
+                mark = "✓" if verification.applied else "✗"
+                log(f"{mark} {verification.detail}")
+                ok = verification.applied is not False
         else:
             mod.revert(ctx)
-        out.put({"kind": "done", "ok": True})
+            ok = True
+        out.put({"kind": "done", "ok": ok})
     except ConnectionProblem as exc:
         log(f"no device: {exc}")
         out.put({"kind": "done", "ok": False, "error": str(exc)})

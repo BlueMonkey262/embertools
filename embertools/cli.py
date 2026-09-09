@@ -8,7 +8,7 @@ import sys
 from .core import ui
 from .core.adb import Adb, AdbError
 from .core.device import Device
-from .core.mod import Context, discover
+from .core.mod import Context, Mod, discover
 from .core import sideload
 from .core.state import State
 
@@ -86,6 +86,11 @@ def cmd_apply(args):
         print(f"  {ui.ORANGE}▶ {m.meta.name}{ui.RESET}")
         try:
             m.apply(ctx)
+            if type(m).verify is not Mod.verify:
+                verification = m.verify(ctx)
+                mark = "✓" if verification.applied else "✗"
+                color = ui.GREEN if verification.applied else ui.RED
+                print(f"  {color}{mark} {verification.detail}{ui.RESET}")
         except Exception as e:
             print(f"  {ui.RED}✗ {m.meta.name} failed: {e}{ui.RESET}")
             if not args.keep_going:
@@ -172,7 +177,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap = sub.add_parser("apply", help="apply one or more mods (interactive if none named)")
     ap.add_argument("mods", nargs="*", help="mod names, or 'all'")
     ap.add_argument("--launcher", default="nova",
-                    help="launcher_swap target: nova | lawnchair | <pkg>/<HomeActivity>")
+                    help="launcher_swap target: nova | lawnchair | kvaesitso | niagara | "
+                         "olauncher | smartlauncher | <pkg> or <pkg>/<activity>")
     ap.add_argument("--dns", default="adguard",
                     help="private_dns resolver: adguard | quad9 | mullvad-adblock | <hostname>")
     ap.add_argument("--keyboard", default="heliboard",

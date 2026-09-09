@@ -54,6 +54,9 @@ class Mod:
     def apply(self, ctx) -> None:
         raise NotImplementedError
 
+    def verify(self, ctx) -> Status:
+        return Status(None, "")
+
     def revert(self, ctx) -> None:
         raise NotImplementedError
 

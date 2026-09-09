@@ -36,8 +36,8 @@ public class RedirectService extends AccessibilityService implements Handler.Cal
             "com.android.launcher3"
     ));
 
-    static String TARGET = "ch.deletescape.lawnchair";
-    static String TARGET_ACTIVITY = "ch.deletescape.lawnchair.Launcher";
+    static String TARGET = "app.lawnchair";
+    static String TARGET_ACTIVITY = "app.lawnchair.LawnchairLauncher";
 
     static final int MSG_RETRY = 1;
     static final long[] RETRIES = { 60, 180, 400, 900 };

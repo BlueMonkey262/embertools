@@ -107,6 +107,10 @@ you cannot test on a device:
 
 Never claim a mod was tested when it wasn't.
 
+Run `python3 -m unittest discover -s tests` and it must pass. New mods should
+add a unittest for their pure logic and, where feasible, a `verify` method for
+post-apply self-checks.
+
 ## Opening a pull request — required user quiz
 
 **Before you open or push a PR, you MUST walk the user through what it contains

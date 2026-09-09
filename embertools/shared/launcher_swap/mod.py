@@ -15,6 +15,7 @@ settings; just re-run this mod.
 
 from __future__ import annotations
 
+import re
 import tempfile
 import time
 from pathlib import Path
@@ -38,26 +39,56 @@ def _components(pkg: str) -> dict:
     }
 
 LAUNCHERS = {
-    "nova":        ("com.teslacoilsw.launcher", "com.teslacoilsw.launcher.NovaLauncher"),
-    "lawnchair":   ("ch.deletescape.lawnchair", "ch.deletescape.lawnchair.Launcher"),
-    "lawnchair2":  ("app.lawnchair", "app.lawnchair.LawnchairLauncher"),
-    "kvaesitso":   ("de.mm20.launcher2.release", "de.mm20.launcher2.ui.launcher.LauncherActivity"),
-    "niagara":     ("bitpit.launcher", "bitpit.launcher.MainActivity"),
-    "smart":       ("ginlemon.flowerfree", "ginlemon.flower.HomeScreen"),
-    "olauncher":   ("app.olauncher", "app.olauncher.MainActivity"),
+    "nova":        ["com.teslacoilsw.launcher"],
+    "lawnchair":   ["app.lawnchair", "app.lawnchair.play", "app.lawnchair.nightly", "ch.deletescape.lawnchair"],
+    "kvaesitso":   ["de.mm20.launcher2.release", "de.mm20.launcher2"],
+    "niagara":     ["bitpit.launcher"],
+    "olauncher":   ["app.olauncher"],
+    "smartlauncher": ["ginlemon.flowerfree", "ginlemon.flowerpro"],
 }
 
 
-def resolve_target(spec: str) -> tuple[str, str]:
+def _activity_from_output(pkg: str, output: str) -> str:
+    for line in reversed((output or "").splitlines()):
+        line = line.strip()
+        if re.fullmatch(r"\.[A-Za-z0-9_.$]+", line):
+            return pkg + line
+        match = re.search(
+            rf"(?<![A-Za-z0-9_.]){re.escape(pkg)}/([A-Za-z0-9_.$]+)",
+            line,
+        )
+        if match:
+            activity = match.group(1)
+            return pkg + activity if activity.startswith(".") else activity
+    return ""
+
+
+def resolve_target(ctx, spec: str) -> tuple[str, str]:
     spec = (spec or "nova").strip()
-    if spec.lower() in LAUNCHERS:
-        return LAUNCHERS[spec.lower()]
     if "/" in spec:
         pkg, act = spec.split("/", 1)
         if act.startswith("."):
             act = pkg + act
         return pkg, act
-    return spec, spec + ".Launcher"
+
+    candidates = LAUNCHERS.get(spec.lower(), [spec])
+    pkg = next((candidate for candidate in candidates if ctx.adb.pkg_installed(candidate)), None)
+    if not pkg:
+        raise RuntimeError(
+            f"none of the {spec} packages are installed: {', '.join(candidates)}. "
+            "Install one, then re-run."
+        )
+
+    commands = [
+        f"cmd package resolve-activity --brief -c android.intent.category.HOME {pkg}",
+        f"cmd package resolve-activity --brief -c android.intent.category.LAUNCHER {pkg}",
+        f"cmd package resolve-activity --brief {pkg}",
+    ]
+    for command in commands:
+        activity = _activity_from_output(pkg, ctx.adb.shell(command))
+        if activity:
+            return pkg, activity
+    raise RuntimeError(f"could not resolve an activity for {pkg} on the tablet. Install one, then re-run.")
 
 
 class LauncherSwap(Mod):
@@ -81,7 +112,7 @@ class LauncherSwap(Mod):
     # -- helpers --------------------------------------------------------
 
     def _target(self, ctx) -> tuple[str, str]:
-        return resolve_target(ctx.opts.get("launcher", "nova"))
+        return resolve_target(ctx, ctx.opts.get("launcher", "nova"))
 
     def _exempt_line(self, ctx) -> str:
         for l in ctx.adb.shell("dumpsys activity | grep -A4 mAllowAppSwitchUids").splitlines():
@@ -95,6 +126,14 @@ class LauncherSwap(Mod):
     def _helper_pkg(self, ctx) -> str:
         # prefer what we recorded (in case the machine's random id changed since)
         return ctx.state.opts(self.meta.name).get("helper_pkg") or helper_package()
+
+    @staticmethod
+    def _component_package(output: str) -> str:
+        for line in (output or "").splitlines():
+            match = re.search(r"\b(?:u\d+\s+)?([A-Za-z0-9_][A-Za-z0-9_.]*)/[A-Za-z0-9_.$]+", line)
+            if match:
+                return match.group(1)
+        return ""
 
     # -- interface -----------------------------------------------------
 
@@ -115,13 +154,10 @@ class LauncherSwap(Mod):
 
     def apply(self, ctx) -> None:
         pkg, act = self._target(ctx)
+        ctx.log(f"target launcher: {pkg}/{act}")
         hp = helper_package()
         c = _components(hp)
-        ctx.log(f"target launcher: {pkg}/{act}")
         ctx.log(f"helper package:  {hp}")
-        if not ctx.adb.pkg_installed(pkg):
-            ctx.log(f"! {pkg} is not installed on the tablet -- install it first "
-                    f"(Play Store / APKMirror). Continuing so the helper is ready.")
 
         ctx.log("building helper APK...")
         apk = ctx.build_helper(HELPER)
@@ -154,13 +190,52 @@ class LauncherSwap(Mod):
         bound = self._a11y_bound(ctx)
         ctx.log(f"a11y bound: {'yes' if bound else 'NO'}")
         ctx.log(f"app-switch exemption: {exemption or 'NOT GRANTED -- re-run with --reboot'}")
+        verification = self.verify(ctx)
         ctx.state.mark_applied(self.meta.name,
                                {"launcher": ctx.opts.get("launcher", "nova"),
-                                "pkg": pkg, "activity": act, "helper_pkg": hp})
+                                "pkg": pkg, "activity": act, "helper_pkg": hp,
+                                "verified": verification.applied})
+        if verification.applied:
+            ctx.log(f"✓ verified: {verification.detail}")
+        else:
+            ctx.log(f"✗ NOT verified: {verification.detail}")
         if not (bound and exemption):
             ctx.log("Not fully active yet. Re-run:  python3 -m embertools apply launcher_swap --reboot")
+        if verification.applied:
+            if bound and exemption:
+                ctx.log("Done. Verified: Home opens the target launcher instantly.")
+            else:
+                ctx.log(f"Verified: Home opens {pkg}; service binding still needs --reboot.")
         else:
-            ctx.log("Done. Press Home on the tablet -- your launcher comes up instantly.")
+            ctx.log(f"Home is NOT opening {pkg} — try re-running with --reboot, or check "
+                    f"{pkg} is really installed")
+
+    def verify(self, ctx) -> Status:
+        pkg, _act = self._target(ctx)
+        results = []
+        last_package = ""
+        last_error = ""
+        for attempt in range(3):
+            try:
+                ctx.adb.shell("am start -n com.android.settings/.Settings")
+                time.sleep(0.25)
+                ctx.adb.shell("input keyevent KEYCODE_HOME")
+                time.sleep(2)
+                output = ctx.adb.shell(
+                    "dumpsys activity activities | grep -m1 mResumedActivity"
+                )
+                last_package = self._component_package(output)
+                results.append(last_package == pkg)
+            except Exception as exc:
+                last_error = str(exc)
+                results.append(False)
+            if attempt < 2:
+                time.sleep(0.25)
+
+        if sum(results) >= 2:
+            return Status(True, f"Home opens {pkg}")
+        opened = last_package or last_error or "no launcher activity found"
+        return Status(False, f"Home opened {opened} instead of {pkg}")
 
     def revert(self, ctx) -> None:
         c = _components(self._helper_pkg(ctx))

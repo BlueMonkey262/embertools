@@ -40,6 +40,7 @@ class MyMod(Mod):
                 risk="low", order=100)
     def status(self, ctx) -> Status        # Status(applied: bool|None, detail: str)
     def apply(self, ctx) -> None
+    def verify(self, ctx) -> Status  # optional post-apply hardware self-check
     def revert(self, ctx) -> None
 MOD = MyMod()
 ```
@@ -48,6 +49,9 @@ MOD = MyMod()
 `discover(dev)` loads every `shared/*/mod.py` + `models/<code>/*/mod.py`, keeps the
 ones whose `supports(dev)` passes, sorts by `order`. Model-specific mods loaded
 last, so they shadow a shared mod with the same `name`.
+
+Mods may implement `verify(ctx)` for a post-apply hardware self-check;
+`launcher_swap` uses it to press Home and confirm the target launcher appears.
 
 ## Compatibility model
 
