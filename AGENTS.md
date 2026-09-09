@@ -18,6 +18,76 @@ contributions accordingly.
 - The CLI (`main.py` / `embertools/cli.py`) is the primary interface; the GUI is
   a thin optional layer over the same mod objects.
 
+## Mods and models — how compatibility is declared
+
+A mod says which devices it works on; the loader only offers a mod on a device it
+claims to support. Get this right — the point is that a user never sees a mod
+that will misbehave on their tablet.
+
+### `Meta` (in each `mod.py`)
+
+```python
+meta = Meta(
+    name="ota_block",            # dir name; unique
+    summary="…",                 # one line, shown in list/GUI
+    supported=["*"],             # model codes, or ["*"] for "any Fire tablet"
+    fireos=[7],                  # major Fire OS lines, or None for "any"
+    needs_build=False,           # True if the mod builds/pushes a helper APK
+    reversible=True,             # must be True unless genuinely impossible
+    risk="low",                  # low | medium | high  (medium/high prompts)
+    order=10,                    # lower = runs earlier in "apply all"
+    options=[...],               # form fields; see private_dns/launcher_swap
+)
+```
+
+- `supported` and `fireos` are **claims that you tested**, not hopes. A mod is
+  shown to the user iff `dev.model in supported (or "*")` **and**
+  `dev.fireos_major in fireos (or fireos is None)`.
+- Use `["*"]` only when the mechanism is genuinely OS/model-agnostic (a plain
+  `settings put`, a `pm disable-user` of an app that exists on all Fire OS). If
+  it depends on a specific package, framework behavior, or SoC, list explicit
+  model codes.
+- Do **not** widen `supported` / `fireos` to "make it match" a device you want to
+  cover. Add a code only after `apply → status → revert` worked on that exact
+  model, or ship the PR as `[needs testing]` and say which entries are unproven.
+
+### `embertools/models/registry.py`
+
+One dict entry per real device, keyed by its exact `ro.product.model`
+(`adb shell getprop ro.product.model`). Shape:
+
+```python
+"KFMAWI": {"name": "Fire HD 10 (2019, 9th Gen)", "soc": "MediaTek MT8183",
+           "fireos": 7, "quirks": ["tested"]},
+```
+
+- `name`: the marketing name + generation, exactly as on Amazon's
+  [device list](https://developer.amazon.com/docs/device-specs/ft-identify-tablet-devices.html).
+  Don't invent model codes or names — look them up.
+- `fireos`: the major line the device tops out on (5/6/7/8).
+- `quirks`: free-form flags a mod may check via `dev.quirks`
+  (`"tested"`, `"untested"`, `"low-ram"`, `"fireos8"`, …). A new device you
+  haven't run on is `"untested"`.
+
+### Shared mod vs. device-specific mod
+
+- **Default:** put the mod in `embertools/shared/<name>/` and list the models it
+  supports. One implementation, many devices.
+- **Only if a device genuinely needs different logic:** add
+  `embertools/models/<CODE>/<name>/mod.py` defining a `MOD` with the same
+  `meta.name`. It shadows the shared mod on that model only. Use this for real
+  divergence (e.g. Fire OS 8 needs a different launcher method), not for
+  per-model tweaks that belong behind a `quirks` check.
+
+### Adding support for a new device — the honest path
+
+1. Add it to `registry.py` with `quirks: ["untested"]`.
+2. For each shared mod you think applies: read the mod, decide if the mechanism
+   really holds on that OS/SoC. If yes and you tested it, add the code to
+   `supported` and flip its quirk to `"tested"`. If you didn't test it, leave it
+   out or ship `[needs testing]`.
+3. Never bulk-add a model to every mod's `supported` list hoping something works.
+
 ## Local checks before proposing changes
 
 - `python3 -m compileall -q embertools main.py`

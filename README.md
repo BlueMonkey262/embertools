@@ -107,10 +107,12 @@ on hardware, that's fine, but the PR title must start with `[needs testing]` and
 say what's unverified, so it isn't merged blind.
 
 **Adding a device:** add it to
-[`embertools/models/registry.py`](embertools/models/registry.py). If it mostly
-works, add its model code to the `supported` list of the relevant mods.
-Device-specific mods go in `embertools/models/<CODE>/<mod>/mod.py` and override
-the shared one of the same name.
+[`embertools/models/registry.py`](embertools/models/registry.py) (keyed by the
+real `ro.product.model`), then add its code to the `supported` list of the mods
+you've **verified** on it. Device-specific mods go in
+`embertools/models/<CODE>/<mod>/mod.py` and override the shared one of the same
+name. [`AGENTS.md`](AGENTS.md) has the exact `Meta` / registry format and the
+rule against widening `supported` to "make it match" — don't do that.
 
 If you use a coding agent to prepare a PR, see [`AGENTS.md`](AGENTS.md) — the
 agent must walk you through exactly what it's submitting before opening it.
