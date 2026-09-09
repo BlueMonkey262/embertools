@@ -140,11 +140,17 @@ Then add your device to
 worked. Used Fire tablets are $10-15 on Marketplace or free in Buy Nothing groups
 if you want to cover a version you don't own.
 
-**Scope:** Fire OS **5 through 8**, i.e. roughly 2015-2024 hardware. Fire OS 8
-(Android 11) is the newest for tablets and has been the ceiling since 2021, so
-it's in scope, not a moving target. The methods are most stable on Fire OS 5-7,
-where Amazon has stopped patching. Once you have a device on an old Fire OS, run
-`ota_block` and don't let it update, so it stays a reference for that version.
+**Scope:** Fire OS **5 through 8**, i.e. every Android-based Fire *tablet*
+(roughly 2015-2024 hardware). Fire OS 8 (Android 11) is the newest for tablets
+and has been the ceiling since 2021, so it's in scope, not a moving target. The
+methods are most stable on Fire OS 5-7, where Amazon has stopped patching. Once
+you have a device on an old Fire OS, run `ota_block` and don't let it update, so
+it stays a reference for that version.
+
+Not in scope: Fire OS 14/16 (those are Fire **TV**, renumbered to match the
+Android version), Vega OS (Amazon's Linux OS for cheap devices), and the
+rumored AOSP-Android high-end tablet (plain Android sets a launcher the normal
+way, so it won't need `launcher_swap`).
 
 ## Disclaimer
 
