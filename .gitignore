@@ -1,0 +1,16 @@
+# build artifacts
+**/helper/out/
+**/helper/debug.keystore
+*.apk
+!*/helper/**/*.apk
+
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+
+# local
+.DS_Store

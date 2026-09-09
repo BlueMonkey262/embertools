@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>embertools — Mockup 2 (light)</title>
+<style>
+  :root{
+    --bg:#f6f6f4;
+    --chrome:#ececea;
+    --panel:#ffffff;
+    --panel-2:#f1f1ef;
+    --border:#dcdcd8;
+    --border-strong:#cbcbc6;
+    --text:#20211f;
+    --text-dim:#5f6360;
+    --text-faint:#8a8d89;
+    --orange:#f2851e;
+    --orange-deep:#e8630a;
+    --orange-tint:rgba(242,133,30,0.10);
+    --green:#3f9d5f;
+    --amber:#c9901f;
+    --radius:8px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#d8d8d4;
+    font-family:var(--font);
+    color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+  }
+  .window{
+    width:1100px;height:720px;
+    background:var(--bg);
+    border:1px solid var(--border-strong);
+    border-radius:12px;
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    box-shadow:0 24px 60px rgba(0,0,0,0.28);
+  }
+
+  .titlebar{
+    height:40px;flex:none;
+    background:var(--chrome);
+    border-bottom:1px solid var(--border);
+    display:flex;align-items:center;
+    padding:0 14px;gap:12px;
+  }
+  .traffic{display:flex;gap:8px}
+  .traffic i{width:12px;height:12px;border-radius:50%;display:block}
+  .traffic .r{background:#ff5f57}
+  .traffic .y{background:#febc2e}
+  .traffic .g{background:#28c840}
+  .wordmark{font-weight:650;font-size:13px;letter-spacing:0.2px;color:var(--text-dim);margin-left:4px}
+  .wordmark b{color:var(--orange-deep);font-weight:650}
+  .titlebar .spacer{flex:1}
+  .titlebar .hint{font-size:11px;color:var(--text-faint)}
+
+  .body{flex:1;display:flex;min-height:0}
+
+  .sidebar{
+    width:240px;flex:none;
+    background:var(--chrome);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .device{padding:12px 14px;border-bottom:1px solid var(--border)}
+  .device .row1{display:flex;align-items:center;gap:7px}
+  .device .conn{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 0 3px rgba(63,157,95,0.20);
+    flex:none;
+  }
+  .device .name{font-size:12.5px;font-weight:600}
+  .device .meta{font-size:11px;color:var(--text-faint);margin-top:4px;line-height:1.45}
+
+  .modlist{flex:1;overflow-y:auto;padding:6px 8px}
+  .modlist::-webkit-scrollbar{width:10px}
+  .modlist::-webkit-scrollbar-thumb{background:#cfcfca;border-radius:6px;border:2px solid var(--chrome)}
+
+  .listlabel{
+    font-size:10px;font-weight:700;letter-spacing:0.9px;
+    text-transform:uppercase;color:var(--text-faint);
+    padding:8px 8px 6px;
+  }
+
+  .mod{
+    display:flex;gap:9px;padding:8px 8px 9px;
+    border-radius:6px;border-left:2px solid transparent;cursor:pointer;
+  }
+  .mod:hover{background:var(--panel-2)}
+  .mod.selected{background:var(--orange-tint);border-left-color:var(--orange)}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;margin-top:3px}
+  .dot.applied{background:var(--green)}
+  .dot.available{background:transparent;border:1.5px solid var(--text-faint)}
+  .dot.attention{background:transparent;border:2px solid var(--amber);box-shadow:0 0 0 2px rgba(201,144,31,0.20)}
+  .mod .mtext{min-width:0}
+  .mod .mname{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .mod .mdesc{font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.4}
+  .badge{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--panel-2);color:var(--text-dim);border:1px solid var(--border);letter-spacing:0.2px}
+  .badge.ok{background:rgba(63,157,95,0.14);color:#2f7d49;border-color:rgba(63,157,95,0.3)}
+  .badge.warn{background:rgba(201,144,31,0.15);color:#9a6d12;border-color:rgba(201,144,31,0.3)}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+  .main-scroll{flex:1;overflow-y:auto;padding:28px 34px}
+
+  .crumb{font-size:11px;color:var(--text-faint);margin-bottom:10px}
+  .crumb b{color:var(--text-dim);font-weight:600}
+
+  .title-row{display:flex;align-items:center;gap:12px}
+  h1{font-size:20px;font-weight:680;letter-spacing:0.1px}
+  .chip{
+    font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;
+    background:rgba(63,157,95,0.14);color:#2f7d49;
+    border:1px solid rgba(63,157,95,0.3);letter-spacing:0.3px;
+  }
+  .lead{margin-top:12px;font-size:13.5px;line-height:1.6;color:var(--text-dim);max-width:640px}
+
+  .run-row{
+    margin-top:22px;
+    display:flex;align-items:center;gap:14px;
+  }
+  .btn{font-family:var(--font);font-size:12.5px;font-weight:650;padding:9px 18px;border-radius:6px;border:1px solid transparent;cursor:pointer}
+  .btn-primary{
+    background:linear-gradient(180deg,var(--orange),var(--orange-deep));
+    color:#fff;
+    box-shadow:0 1px 0 rgba(255,255,255,0.25) inset,0 2px 8px rgba(232,99,10,0.30);
+  }
+  .btn-primary:hover{filter:brightness(1.05)}
+  .btn-primary[disabled]{opacity:0.6;cursor:default;filter:none}
+  .btn-secondary{background:var(--panel);color:var(--text-dim);border-color:var(--border-strong)}
+
+  .spinner{
+    width:16px;height:16px;flex:none;
+    border:2px solid rgba(232,99,10,0.25);
+    border-top-color:var(--orange-deep);
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .running-label{font-size:12px;color:var(--text-dim)}
+  .running-label b{color:var(--text);font-weight:650}
+
+  .progress-wrap{margin-top:16px;max-width:680px}
+  .progress-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-faint);margin-bottom:6px}
+  .progress{
+    height:6px;border-radius:999px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    overflow:hidden;
+  }
+  .progress>span{
+    display:block;height:100%;width:64%;
+    background:linear-gradient(90deg,var(--orange),var(--orange-deep));
+  }
+
+  .console{
+    margin-top:20px;max-width:680px;
+    background:#1c1d1f;
+    border:1px solid #101012;
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .console-head{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 12px;
+    background:#232427;
+    border-bottom:1px solid #101012;
+    font-size:11px;color:#9aa0a6;font-weight:600;letter-spacing:0.3px;
+  }
+  .console-head .live{
+    width:7px;height:7px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 3px rgba(63,157,95,0.22);
+  }
+  .console-body{
+    padding:12px 14px;
+    font-family:var(--mono);
+    font-size:12px;line-height:1.75;
+    color:#c6c8cb;
+    height:230px;overflow-y:auto;
+    white-space:pre-wrap;
+  }
+  .console-body::-webkit-scrollbar{width:10px}
+  .console-body::-webkit-scrollbar-thumb{background:#3a3c42;border-radius:6px;border:2px solid #1c1d1f}
+  .l-ok .t{color:#6ecb8a}
+  .l-warn{color:#e0b64a}
+  .l-dim{color:#82858a}
+  .l-sum{color:#e6e7e9}
+  .caret{
+    display:inline-block;width:8px;height:14px;
+    background:var(--orange);vertical-align:-2px;
+    animation:blink 1s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  .actionbar{
+    flex:none;border-top:1px solid var(--border);
+    background:var(--chrome);
+    padding:14px 34px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .actionbar .status{font-size:11.5px;color:var(--text-faint)}
+  .actionbar .spacer{flex:1}
+</style>
+</head>
+<body>
+<div class="window" role="application" aria-label="embertools GUI mockup, light theme">
+
+  <div class="titlebar">
+    <div class="traffic"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+    <span class="wordmark"><b>ember</b>tools</span>
+    <span class="spacer"></span>
+    <span class="hint">connected · adb</span>
+  </div>
+
+  <div class="body">
+
+    <aside class="sidebar">
+      <div class="device">
+        <div class="row1">
+          <span class="conn" aria-hidden="true"></span>
+          <span class="name">Fire HD 10 (2019)</span>
+        </div>
+        <div class="meta">Fire OS 7.3.3.1 · KFMAWI</div>
+      </div>
+
+      <nav class="modlist" aria-label="Available mods">
+        <div class="listlabel">Mods</div>
+
+        <div class="mod">
+          <span class="dot attention" aria-hidden="true"></span>
+          <span class="mtext">
+            <span class="mname">ota_block <span class="badge warn">recommended</span></span>
+            <span class="mdesc">Block automatic Fire OS updates (do this first)</span>
+          </span>
+        </div>
+
+        <div class="mod selected" aria-current="true">
+          <span class="dot applied" aria-hidden="true"></span>
+          <span class="mtext">
+            <span class="mname">debloat <span class="badge ok">20/22</span></span>
+            <span class="mdesc">Disable Amazon apps (Prime Video, Alexa, Silk, …)</span>
+          </span>
+        </div>
+
+        <div class="mod">
+          <span class="dot applied" aria-hidden="true"></span>
+          <span class="mtext">
+            <span class="mname">private_dns</span>
+            <span class="mdesc">System-wide ad/tracker blocking via Private DNS</span>
+          </span>
+        </div>
+
+        <div class="mod">
+          <span class="dot available" aria-hidden="true"></span>
+          <span class="mtext">
+            <span class="mname">launcher_swap</span>
+            <span class="mdesc">Use Nova/Lawnchair as instant default (no root)</span>
+          </span>
+        </div>
+
+        <div class="mod">
+          <span class="dot available" aria-hidden="true"></span>
+          <span class="mtext">
+            <span class="mname">play_store</span>
+            <span class="mdesc">Install the Google Play Store</span>
+          </span>
+        </div>
+
+        <div class="mod">
+          <span class="dot available" aria-hidden="true"></span>
+          <span class="mtext">
+            <span class="mname">disable_telemetry</span>
+            <span class="mdesc">Stop Amazon background data collection</span>
+          </span>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="main-scroll">
+        <div class="crumb"><b>debloat</b> · re-running</div>
+
+        <div class="title-row">
+          <h1>debloat</h1>
+          <span class="chip">applied · 20/22</span>
+        </div>
+
+        <p class="lead">
+          Disable Amazon's preinstalled apps and services — Prime Video, Alexa, Silk browser,
+          Appstore, ad services and lock-screen offers — using <span style="font-family:var(--mono);font-size:12px">pm disable-user</span>
+          over ADB. Nothing is uninstalled, so every change is reversible and no data partition is touched.
+          Packages Fire OS marks as protected are skipped automatically.
+        </p>
+
+        <div class="run-row">
+          <button class="btn btn-primary" disabled>Apply</button>
+          <div class="spinner" aria-hidden="true"></div>
+          <span class="running-label">Running <b>debloat</b> — disabling packages…</span>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-meta"><span>14 of 22 packages</span><span>~8s remaining</span></div>
+          <div class="progress" role="progressbar" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100">
+            <span></span>
+          </div>
+        </div>
+
+        <div class="console">
+          <div class="console-head">
+            <span class="live" aria-hidden="true"></span>
+            <span>output — debloat</span>
+          </div>
+          <div class="console-body" id="log">
+<span class="l-dim">$ embertools apply debloat --device KFMAWI</span>
+<span class="l-dim">resolving package set … 22 targets</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.avod … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.dee.app … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.alexa.multimodal … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.silk.browser … ok</span>
+<span class="l-warn">! com.amazon.venezia … protected (skipped)</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.kindle … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.photos … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.windowshop … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.tv.launcher … ok</span>
+<span class="l-warn">! com.amazon.device.software.ota … protected (skipped)</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.bueller.music … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.kindle.otter … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.sync.provider.ipnice … ok</span>
+<span class="l-ok"><span class="t">✓</span> disabling com.amazon.gamehub … ok</span>
+<span class="caret" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="actionbar">
+        <span class="status">Streaming from KFMAWI · disabled 14, protected 2 so far</span>
+        <span class="spacer"></span>
+        <button class="btn btn-secondary">Cancel</button>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<script>
+  // fake selection
+  document.querySelectorAll('.mod').forEach(function(el){
+    el.addEventListener('click',function(){
+      document.querySelectorAll('.mod').forEach(function(m){m.classList.remove('selected');m.removeAttribute('aria-current')});
+      el.classList.add('selected');el.setAttribute('aria-current','true');
+    });
+  });
+  // keep console pinned to bottom
+  var log=document.getElementById('log');
+  if(log) log.scrollTop=log.scrollHeight;
+</script>
+</body>
+</html>

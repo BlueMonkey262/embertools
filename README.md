@@ -1,0 +1,104 @@
+# embertools
+
+A modular, **no-root** toolkit for reclaiming Amazon Fire tablets — replace the
+launcher, strip Amazon apps, block ads, stop forced updates. ADB only; no
+bootloader unlock, no `/system` changes.
+
+> Status: early. Fully tested on the **Fire HD 10 2019 (KFMAWI)** / Fire OS 7.3.3.1.
+> Other Fire OS 7 devices are wired up but need testers. Fire OS 8 is WIP.
+
+## Why
+
+Fire Toolbox is Windows-only and closed; Fire-Tools is effectively unmaintained
+and its launcher method no longer works on current Fire OS 7. embertools' headline
+trick: it makes a third-party launcher the **instant** default on locked Fire OS
+by registering a tiny helper as the device's *assistant*, which grants it the
+same "launch over anything" exemption assistants get — sidestepping the 5-second
+post-Home app-switch lock that makes every LauncherHijack-style tool feel broken.
+
+## Install
+
+```bash
+git clone https://github.com/OWNER/embertools && cd embertools
+pipx install .        # or: pip install --user .
+```
+
+Requirements on your computer:
+- `adb` (Android platform-tools) on PATH
+- a JDK 17+ (only for mods that build a helper APK — e.g. `launcher_swap`).
+  The Android build-tools are downloaded automatically into `~/.embertools/`.
+
+On the tablet: Settings → Device Options → Developer Options → **USB debugging** on.
+
+## Use
+
+CLI (primary):
+
+```bash
+python3 main.py list                  # what's available for your tablet
+python3 main.py apply                 # interactive picker
+python3 main.py apply launcher_swap --launcher nova --reboot
+python3 main.py apply ota_block debloat private_dns keyboard --yes
+python3 main.py status
+python3 main.py revert                # interactive: pick what to undo
+python3 main.py revert all
+```
+
+(If installed with `pipx`/`pip`, the `embertools` command is equivalent to
+`python3 main.py`.)
+
+GUI — work in progress:
+
+```bash
+python3 main.py --ui                  # opens the design mockup for now
+```
+
+Install the launcher you want first (Nova / Lawnchair / …) from the Play Store or
+APKMirror, then run `launcher_swap`.
+
+## Mods
+
+| mod | what it does | risk |
+|---|---|---|
+| `ota_block` | block automatic Fire OS updates (**run first**) | medium |
+| `debloat` | disable Prime Video, Alexa, Silk, Kindle, lock-screen ads, … | low |
+| `private_dns` | system-wide ad/tracker blocking via Private DNS | low |
+| `launcher_swap` | third-party launcher as instant default (builds a helper APK) | low |
+| `keyboard` | install a real keyboard (HeliBoard / FlorisBoard / … / Gboard), set it default, fix the stray iWnn CJK setup | low |
+
+Every mod is idempotent and has `revert`. State is tracked per device in
+`~/.embertools/state/<serial>.json`.
+
+## How `launcher_swap` works
+
+1. A small `AccessibilityService` starts your launcher whenever the Fire launcher
+   comes forward.
+2. The helper is also set as `voice_interaction_service`. Android's
+   `VoiceInteractionManagerService` then adds its uid to
+   `ActivityManagerService.mAllowAppSwitchUids`, exempting it from
+   `APP_SWITCH_DELAY_TIME` (the 5s lock after Home). Redirect drops from ~4.5s to
+   ~150ms; the Fire launcher never renders.
+
+Side effects: the long-press-Home / assist gesture does nothing while active; a
+Fire OS update resets the settings (re-run the mod). `revert` clears everything
+and uninstalls the helper.
+
+Helper source: [`shared/launcher_swap/helper/`](embertools/shared/launcher_swap/helper).
+No APK is shipped — it's built on your machine (Gradle-free: aapt2 + javac + d8 +
+apksigner, with a persistent debug key so rebuilds stay `install -r`-compatible).
+The helper's package name is **randomised per machine** (`~/.embertools/helper_id`)
+so a manufacturer launcher blacklist has no fixed name to match — the app also
+has no drawer icon and a generic label.
+
+## Contributing a device
+
+Add it to [`embertools/models/registry.py`](embertools/models/registry.py). If it
+mostly works, add its model code to the `supported` list of the relevant mods in
+`shared/*/mod.py`. Device-specific mods go in `embertools/models/<CODE>/<mod>/mod.py`
+and override the shared one of the same name.
+
+## Disclaimer
+
+You own your tablet; this only uses documented ADB and Android APIs. But you can
+still soft-brick a Fire tablet by disabling the wrong system package — `revert`
+and, worst case, a factory reset are your safety nets. No warranty.

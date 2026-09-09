@@ -1,0 +1,27 @@
+# Amazon consumer apps to disable on Fire OS 7.  `pm disable-user` sticks across
+# reboot; `pm uninstall --user 0` gets reverted by Fire OS on boot, so we
+# disable.  Lines starting with # are comments.  Anything "protected" is skipped
+# automatically with a note.
+
+com.amazon.avod                 # Prime Video
+com.amazon.dee.app              # Alexa
+com.amazon.photos               # Amazon Photos
+com.amazon.kindle               # Kindle
+com.audible.application.kindle  # Audible
+com.amazon.tahoe                # Amazon Kids / FreeTime
+com.amazon.cloud9               # Silk Browser
+com.amazon.mp3                  # Amazon Music
+com.amazon.windowshop           # Amazon Shopping
+com.amazon.imdb.tv.mobile.app   # Amazon (IMDb TV / Freevee)
+com.amazon.weather              # Weather
+com.amazon.sneakpeek            # lock-screen "offers" / ads
+com.amazon.kor.demo             # retail demo mode
+com.amazon.bioscope
+com.amazon.redstone
+com.amazon.recess
+com.amazon.hedwig
+com.amazon.kindle.unifiedSearch
+com.amazon.kindle.starsight
+com.amazon.comms.kids
+com.amazon.cloud9.kids
+com.amazon.firespotlight

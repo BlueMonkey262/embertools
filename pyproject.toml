@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "embertools"
+version = "0.1.0"
+description = "Modular, no-root toolkit for reclaiming Amazon Fire tablets"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = []          # stdlib only; a JDK + adb are the real requirements
+
+[project.scripts]
+embertools = "embertools.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/OWNER/embertools"   # TODO: set on first push
+
+[tool.setuptools.packages.find]
+include = ["embertools*"]
+
+[tool.setuptools.package-data]
+"embertools" = [
+    "shared/**/*",
+    "models/**/*",
+]
