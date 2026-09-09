@@ -208,10 +208,10 @@ class LauncherSwap(Mod):
             else:
                 ctx.log(f"Verified: Home opens {pkg}; service binding still needs --reboot.")
         elif bound and exemption and not ctx.opts.get("reboot"):
-            ctx.log(f"Home is NOT opening {pkg} — not redirecting yet — re-run with --reboot")
+            ctx.log(f"Home is NOT opening {pkg} yet. Re-run with --reboot.")
         else:
-            ctx.log(f"Home is NOT opening {pkg} — try re-running with --reboot, or check "
-                    f"{pkg} is really installed")
+            ctx.log(f"Home is NOT opening {pkg}. Re-run with --reboot, or check "
+                    f"{pkg} is really installed.")
 
     def verify(self, ctx) -> Status:
         pkg, _act = self._target(ctx)
