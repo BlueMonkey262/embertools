@@ -6,7 +6,7 @@ bootloader unlock, no `/system` changes.
 
 > **Status: early, tested on exactly one device** (Fire HD 10 2019 / KFMAWI,
 > Fire OS 7.3.3.1). It targets **Fire OS 7** (Android 9). Everything else is
-> untested — see [Help wanted](#help-wanted).
+> untested; see [Help wanted](#help-wanted).
 
 ## Why
 
