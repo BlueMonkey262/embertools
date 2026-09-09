@@ -151,3 +151,10 @@ report what's pending.
 
 Match the surrounding code: terse, lowercase log lines, `ctx.log(...)` inside
 mods, no comments restating the obvious. Keep mods small.
+
+## Downloads
+
+Before any network fetch of an APK or binary, the mod MUST call `ctx.log` with
+the full URL and the trust basis. For example:
+`source: f-droid.org — https://f-droid.org/repo/xxx_123.apk — APK signed by F-Droid`.
+There must be no silent downloads.

@@ -55,6 +55,7 @@ class Keyboard(Mod):
         fireos=[5, 6, 7, 8],
         reversible=True,
         risk="low",
+        confirm="Downloads and installs the selected keyboard, then makes it your default input method. Continue?",
         order=60,
         options=[
             {"name": "keyboard", "label": "Keyboard", "type": "choice",
@@ -97,7 +98,8 @@ class Keyboard(Mod):
                     f"{name} ({pkg}) isn't installed. Install it from the Play Store "
                     f"first, then re-run.")
             url = _fdroid_apk_url(pkg)
-            ctx.log(f"downloading {name} from {url}")
+            ctx.log("source: F-Droid (f-droid.org), APK signed by the F-Droid build server")
+            ctx.log(f"fetching {url}")
             with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as tf:
                 with urllib.request.urlopen(url, timeout=120) as r:
                     tf.write(r.read())

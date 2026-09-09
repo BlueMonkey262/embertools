@@ -100,6 +100,7 @@ class LauncherSwap(Mod):
         needs_build=True,
         reversible=True,
         risk="low",
+        confirm="Installs a helper app and, if 'reboot after' is on, restarts the tablet. Continue?",
         order=50,
         options=[
             {"name": "launcher", "label": "Target launcher", "type": "choice",
@@ -206,6 +207,8 @@ class LauncherSwap(Mod):
                 ctx.log("Done. Verified: Home opens the target launcher instantly.")
             else:
                 ctx.log(f"Verified: Home opens {pkg}; service binding still needs --reboot.")
+        elif bound and exemption and not ctx.opts.get("reboot"):
+            ctx.log(f"Home is NOT opening {pkg} — not redirecting yet — re-run with --reboot")
         else:
             ctx.log(f"Home is NOT opening {pkg} — try re-running with --reboot, or check "
                     f"{pkg} is really installed")
@@ -215,12 +218,12 @@ class LauncherSwap(Mod):
         results = []
         last_package = ""
         last_error = ""
-        for attempt in range(3):
+        for attempt in range(6):
             try:
                 ctx.adb.shell("am start -n com.android.settings/.Settings")
                 time.sleep(0.25)
                 ctx.adb.shell("input keyevent KEYCODE_HOME")
-                time.sleep(2)
+                time.sleep(2.5)
                 output = ctx.adb.shell(
                     "dumpsys activity activities | grep -m1 mResumedActivity"
                 )
@@ -229,8 +232,6 @@ class LauncherSwap(Mod):
             except Exception as exc:
                 last_error = str(exc)
                 results.append(False)
-            if attempt < 2:
-                time.sleep(0.25)
 
         if sum(results) >= 2:
             return Status(True, f"Home opens {pkg}")

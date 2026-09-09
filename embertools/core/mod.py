@@ -22,6 +22,7 @@ MODELS = ROOT / "models"
 class Meta:
     name: str
     summary: str
+    confirm: str | None = None
     supported: list[str] = field(default_factory=lambda: ["*"])  # model codes or ["*"]
     fireos: list[int] | None = None       # e.g. [7] or [7, 8]; None = any
     needs_build: bool = False

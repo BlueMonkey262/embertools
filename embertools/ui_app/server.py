@@ -16,6 +16,7 @@ from urllib.parse import unquote, urlparse
 
 from ..core.adb import Adb
 from ..core.device import Device
+from ..core import device_ops
 from ..core.mod import Context, Mod, Status, discover
 from ..core import sideload
 from ..core.state import State
@@ -83,6 +84,7 @@ def _state_payload() -> dict:
         result["mods"].append({
             "name": mod.meta.name,
             "summary": mod.meta.summary,
+            "confirm": mod.meta.confirm,
             "risk": mod.meta.risk,
             "reversible": mod.meta.reversible,
             "needs_build": mod.meta.needs_build,
@@ -91,6 +93,19 @@ def _state_payload() -> dict:
             "applied_via_embertools": state.is_applied(mod.meta.name),
         })
     return result
+
+
+def _packages_payload() -> dict:
+    try:
+        adb, _dev = _connect()
+    except ConnectionProblem:
+        return {"connected": False}
+    except Exception:
+        return {"connected": False}
+    try:
+        return {"packages": device_ops.list_packages(adb)}
+    except Exception:
+        return {"connected": False}
 
 
 def _option_values(mod, supplied: dict) -> dict:
@@ -154,6 +169,8 @@ def _run_install_job(job_id: str, upload_dir: str, upload_path: str) -> None:
 
     try:
         adb, _dev = _connect()
+        path = Path(upload_path)
+        log(f"source: local file {path.name} ({path.stat().st_size} bytes)")
         result = sideload.install_path(adb, upload_path, log=log)
         summary = f"installed {len(result['installed'])}, failed {len(result['failed'])}"
         out.put({"kind": "done", "ok": result["ok"], **({"error": summary} if not result["ok"] else {})})
@@ -165,6 +182,33 @@ def _run_install_job(job_id: str, upload_dir: str, upload_path: str) -> None:
         out.put({"kind": "done", "ok": False, "error": str(exc)})
     finally:
         shutil.rmtree(upload_dir, ignore_errors=True)
+
+
+def _run_device_job(job_id: str, payload: dict) -> None:
+    with _jobs_lock:
+        out = jobs[job_id]
+
+    def log(message: str) -> None:
+        out.put({"kind": "log", "line": str(message)})
+
+    try:
+        adb, _dev = _connect()
+        action = payload["action"]
+        if action == "uninstall":
+            device_ops.uninstall(adb, payload["pkg"], log)
+        elif action == "enable":
+            device_ops.set_enabled(adb, payload["pkg"], True, log)
+        elif action == "disable":
+            device_ops.set_enabled(adb, payload["pkg"], False, log)
+        else:
+            device_ops.power(adb, payload["power_action"], log)
+        out.put({"kind": "done", "ok": True})
+    except ConnectionProblem as exc:
+        log(f"no device: {exc}")
+        out.put({"kind": "done", "ok": False, "error": str(exc)})
+    except Exception as exc:
+        log(f"error: {exc}")
+        out.put({"kind": "done", "ok": False, "error": str(exc)})
 
 
 def _json(handler: BaseHTTPRequestHandler, value: dict, status: int = 200) -> None:
@@ -187,6 +231,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/state":
             _json(self, _state_payload())
             return
+        if path == "/api/packages":
+            _json(self, _packages_payload())
+            return
         if path.startswith("/api/stream/"):
             self._stream(path.rsplit("/", 1)[-1])
             return
@@ -196,6 +243,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/install":
             self._install_upload()
+            return
+        if path == "/api/device":
+            self._device_action()
             return
         if path != "/api/run":
             _json(self, {"error": "not found"}, 404)
@@ -223,6 +273,40 @@ class Handler(BaseHTTPRequestHandler):
             target=_run_job,
             args=(job_id, action, mod_name, opts),
             name=f"embertools-job-{job_id[:8]}",
+            daemon=True,
+        ).start()
+        _json(self, {"job_id": job_id})
+
+    def _device_action(self) -> None:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(payload, dict):
+                raise ValueError("request body must be an object")
+            action = payload.get("action")
+            if action not in {"uninstall", "enable", "disable", "power"}:
+                raise ValueError("action must be uninstall, enable, disable, or power")
+            if action == "power":
+                power_action = payload.get("power_action")
+                if power_action not in {"reboot", "recovery", "shutdown"}:
+                    raise ValueError("power_action must be reboot, recovery, or shutdown")
+                job_payload = {"action": action, "power_action": power_action}
+            else:
+                pkg = payload.get("pkg")
+                if not isinstance(pkg, str) or not pkg:
+                    raise ValueError("pkg is required")
+                job_payload = {"action": action, "pkg": pkg}
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            _json(self, {"error": str(exc)}, 400)
+            return
+
+        job_id = uuid.uuid4().hex
+        with _jobs_lock:
+            jobs[job_id] = queue.Queue()
+        threading.Thread(
+            target=_run_device_job,
+            args=(job_id, job_payload),
+            name=f"embertools-device-{job_id[:8]}",
             daemon=True,
         ).start()
         _json(self, {"job_id": job_id})

@@ -24,9 +24,11 @@ class PrivateDns(Mod):
         fireos=[7, 8],
         reversible=True,
         risk="low",
+        confirm="Routes all DNS on the tablet through the chosen resolver. Continue?",
         order=40,
         options=[
-            {"name": "dns", "label": "Resolver", "type": "choice",
+            {"name": "dns", "label": "Resolver", "help": "Pick one or type a DoT hostname.",
+             "type": "choice", "allow_custom": True,
              "choices": list(RESOLVERS), "default": "adguard"},
         ],
     )

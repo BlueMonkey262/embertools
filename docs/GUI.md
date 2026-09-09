@@ -29,7 +29,9 @@ lazy — they happen when `/api/state` or a run needs them.
 
 - `GET /` serves the self-contained dark GUI.
 - `GET /api/state` returns the connected device and the compatible mods, including status, risk, reversibility, build requirements, and form option metadata. Missing, multiple, or unauthorized devices return HTTP 200 with `connected: false` and a message.
+- `GET /api/packages` returns `{ "packages": [...] }` for third-party packages, including each package's `pkg`, `enabled`, and `system` fields. It returns `{ "connected": false }` when no device is available.
 - `POST /api/run` accepts `{ "action": "apply"|"revert", "mod": "...", "opts": {} }` and returns a background `job_id`.
+- `POST /api/device` accepts `{ "action": "uninstall"|"enable"|"disable"|"power", "pkg": "...", "power_action": "reboot"|"recovery"|"shutdown" }` as applicable and returns a background `job_id`. Device jobs use the same `/api/stream/<job_id>` SSE endpoint.
 - `POST /api/install` accepts the raw file body with `Content-Type: application/octet-stream` and an `X-Filename` header. The filename must end in `.apk`, `.apkm`, `.xapk`, or `.apks`; it returns a background `job_id`.
 - `GET /api/stream/<job_id>` is an SSE stream of job log lines (including `Context.log` lines for mod runs), followed by an `event: done` record containing `{ "ok": true }` or `{ "ok": false, "error": "..." }`.
 

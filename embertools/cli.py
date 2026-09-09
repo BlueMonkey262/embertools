@@ -82,6 +82,10 @@ def cmd_apply(args):
         if m.meta.risk != "low" and not args.yes and not ui.confirm(
                 f"{m.meta.name} is {m.meta.risk} risk — continue?"):
             continue
+        if m.meta.confirm and not args.yes:
+            print(f"  {m.meta.confirm}")
+            if not ui.confirm("continue?"):
+                continue
         ui.rule()
         print(f"  {ui.ORANGE}▶ {m.meta.name}{ui.RESET}")
         try:
