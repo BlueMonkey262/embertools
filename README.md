@@ -94,12 +94,21 @@ The helper's package name is **randomised per machine** (`~/.embertools/helper_i
 so a manufacturer launcher blacklist has no fixed name to match — the app also
 has no drawer icon and a generic label.
 
-## Contributing a device
+## Contributing
 
-Add it to [`embertools/models/registry.py`](embertools/models/registry.py). If it
-mostly works, add its model code to the `supported` list of the relevant mods in
-`shared/*/mod.py`. Device-specific mods go in `embertools/models/<CODE>/<mod>/mod.py`
-and override the shared one of the same name.
+**Anyone can submit a new mod via a pull request.** A mod is a directory under
+`embertools/shared/<name>/` with a `mod.py` defining a `MOD` (see any existing
+mod and [`docs/DESIGN.md`](docs/DESIGN.md)). Keep it idempotent, reversible, and
+stdlib-only; declare which models it supports.
+
+**Adding a device:** add it to
+[`embertools/models/registry.py`](embertools/models/registry.py). If it mostly
+works, add its model code to the `supported` list of the relevant mods.
+Device-specific mods go in `embertools/models/<CODE>/<mod>/mod.py` and override
+the shared one of the same name.
+
+If you use a coding agent to prepare a PR, see [`AGENTS.md`](AGENTS.md) — the
+agent must walk you through exactly what it's submitting before opening it.
 
 ## Disclaimer
 

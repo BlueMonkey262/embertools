@@ -19,6 +19,8 @@ the GUI in a **window**, picking the best available option:
    window. No install needed if you have any of those.
 3. **plain browser tab** — the fallback; the terminal then waits for Enter.
 
+The frameless traffic-light titlebar requires `pip install embertools[gui]` (pywebview); Chromium/browser mode uses the OS titlebar and hides the in-app one.
+
 Closing the window stops the server. It binds locally, uses no authentication,
 and adds no *required* pip dependencies. ADB connection and device inspection are
 lazy — they happen when `/api/state` or a run needs them.

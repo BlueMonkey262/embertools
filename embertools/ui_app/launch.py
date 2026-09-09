@@ -8,6 +8,7 @@ Order of preference, all optional, no Electron:
 
 from __future__ import annotations
 
+import inspect
 import os
 import platform
 import shutil
@@ -38,6 +39,19 @@ _CHROMIUM_WIN = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
 ]
+
+
+class _Api:
+    def __init__(self):
+        self._window = None
+
+    def close(self):
+        if self._window:
+            self._window.destroy()
+
+
+def _chrome_url(url: str, mode: str) -> str:
+    return f"{url}{'&' if '?' in url else '?'}chrome={mode}"
 
 
 def find_chromium() -> str | None:
@@ -72,7 +86,22 @@ def open_window(url: str) -> None:
     # 1. pywebview
     try:
         import webview  # type: ignore
-        webview.create_window("embertools", url, width=WIN_W, height=WIN_H)
+        api = _Api()
+        kwargs = {
+            "width": WIN_W,
+            "height": WIN_H,
+            "frameless": True,
+            "js_api": api,
+        }
+        try:
+            params = inspect.signature(webview.create_window).parameters.values()
+            if any(p.name == "easy_drag" or p.kind is inspect.Parameter.VAR_KEYWORD
+                   for p in params):
+                kwargs["easy_drag"] = True
+        except (TypeError, ValueError):
+            pass
+        win = webview.create_window("embertools", _chrome_url(url, "custom"), **kwargs)
+        api._window = win
         webview.start()
         return
     except ImportError:
@@ -88,7 +117,7 @@ def open_window(url: str) -> None:
         proc = None
         try:
             proc = subprocess.Popen([
-                chrome, f"--app={url}",
+                chrome, f"--app={_chrome_url(url, 'os')}",
                 f"--window-size={WIN_W},{WIN_H}",
                 f"--user-data-dir={UIDATA}",
                 "--no-first-run", "--no-default-browser-check",
@@ -108,7 +137,7 @@ def open_window(url: str) -> None:
     # 3. plain tab
     print("Opening embertools in your browser. For a real window, "
           "`pip install pywebview` or install Chrome/Edge/Brave.")
-    webbrowser.open(url)
+    webbrowser.open(_chrome_url(url, "os"))
     try:
         input("embertools GUI running — press Enter to stop.\n")
     except (EOFError, KeyboardInterrupt):
