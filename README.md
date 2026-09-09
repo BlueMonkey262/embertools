@@ -120,6 +120,32 @@ rule against widening `supported` to "make it match" — don't do that.
 If you use a coding agent to prepare a PR, see [`AGENTS.md`](AGENTS.md) — the
 agent must walk you through exactly what it's submitting before opening it.
 
+### Help wanted: device coverage
+
+**Own a Fire tablet that isn't fully supported? Please test the mods on it and
+send a PR.** Most of the work is running four commands and reporting what
+happened — you don't need to write code:
+
+```bash
+python3 main.py list                       # does it detect your model?
+python3 main.py apply debloat --yes        # then: status, revert, status
+python3 main.py apply private_dns --yes    # same
+python3 main.py apply keyboard --keyboard heliboard   # same
+python3 main.py apply launcher_swap --launcher <yours> --reboot   # Fire OS 7 only
+```
+
+Then add your device to
+[`embertools/models/registry.py`](embertools/models/registry.py) and each mod's
+`supported` list, and open a PR noting your model + Fire OS version and what
+worked. Used Fire tablets are $10–15 on Marketplace / free in Buy Nothing groups
+if you want to cover a version you don't own.
+
+**Scope:** the focus is Fire OS **5–7** (roughly 2015–2021 hardware), where
+Amazon has stopped patching and the methods are stable. Fire OS 8 support is
+welcome but best-effort — it's a moving target while Amazon still ships updates.
+Once you have a device on an old Fire OS, run `ota_block` and don't let it
+update, so it stays a reference for that version.
+
 ## Disclaimer
 
 You own your tablet; this only uses documented ADB and Android APIs. But you can
