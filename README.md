@@ -55,8 +55,9 @@ GUI (work in progress):
 python3 main.py --ui                  # opens the GUI in a window
 ```
 
-Install the launcher you want first (Nova, Lawnchair, ...) from the Play Store or
-APKMirror, then run `launcher_swap`.
+`launcher_swap` downloads the launcher for you if it isn't installed
+(open-source ones from F-Droid, others from APKPure). You can also install it
+yourself first from the Play Store or APKMirror.
 
 ## Mods
 
