@@ -4,8 +4,8 @@ A modular, **no-root** toolkit for reclaiming Amazon Fire tablets: replace the
 launcher, strip Amazon apps, block ads, stop forced updates. ADB only; no
 bootloader unlock, no `/system` changes.
 
-> **Status: early, tested on exactly one device** — Fire HD 10 2019 (KFMAWI),
-> Fire OS 7.3.3.1. It targets **Fire OS 7** (Android 9). Everything else is
+> **Status: early, tested on exactly one device** (Fire HD 10 2019 / KFMAWI,
+> Fire OS 7.3.3.1). It targets **Fire OS 7** (Android 9). Everything else is
 > untested — see [Help wanted](#help-wanted).
 
 ## Why
@@ -142,7 +142,7 @@ Then open an issue (or a PR adding your device to
 with your model, Fire OS version, and what worked or broke.
 
 - **Most wanted:** other Fire OS 7 devices (Fire HD 8 2018/2020, Fire 7 2019,
-  Fire HD 10 2021) — the launcher method should port there with little or no
+  Fire HD 10 2021). The launcher method should port there with little or no
   change.
 - **Also wanted:** Fire OS 5 and 6 (2015-2018 tablets). `launcher_swap` isn't
   needed there (`pm disable-user com.amazon.firelauncher` still works), but the
