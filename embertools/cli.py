@@ -9,6 +9,7 @@ from .core import ui
 from .core.adb import Adb, AdbError
 from .core.device import Device
 from .core.mod import Context, discover
+from .core import sideload
 from .core.state import State
 
 
@@ -132,6 +133,16 @@ def cmd_revert(args):
     ui.rule()
 
 
+def cmd_install(args):
+    adb, _dev = _connect(args)
+    any_failed = False
+    for path in args.paths:
+        result = sideload.install_path(adb, path, log=print)
+        any_failed = any_failed or not result["ok"]
+    if any_failed:
+        raise SystemExit(1)
+
+
 def _select_named(mods, names):
     by = {m.meta.name: m for m in mods}
     out = []
@@ -177,6 +188,10 @@ def build_parser() -> argparse.ArgumentParser:
                              "'all' = every applied mod; or name them")
     rp.add_argument("mods", nargs="*")
     rp.set_defaults(func=cmd_revert)
+
+    ip = sub.add_parser("install", help="install APKs, split APK archives, or a directory of them")
+    ip.add_argument("paths", nargs="+", help=".apk, .apkm, .xapk, .apks, or a directory")
+    ip.set_defaults(func=cmd_install)
 
     return p
 

@@ -28,6 +28,11 @@ lazy — they happen when `/api/state` or a run needs them.
 - `GET /` serves the self-contained dark GUI.
 - `GET /api/state` returns the connected device and the compatible mods, including status, risk, reversibility, build requirements, and form option metadata. Missing, multiple, or unauthorized devices return HTTP 200 with `connected: false` and a message.
 - `POST /api/run` accepts `{ "action": "apply"|"revert", "mod": "...", "opts": {} }` and returns a background `job_id`.
-- `GET /api/stream/<job_id>` is an SSE stream of `Context.log` lines, followed by an `event: done` record containing `{ "ok": true }` or `{ "ok": false, "error": "..." }`.
+- `POST /api/install` accepts the raw file body with `Content-Type: application/octet-stream` and an `X-Filename` header. The filename must end in `.apk`, `.apkm`, `.xapk`, or `.apks`; it returns a background `job_id`.
+- `GET /api/stream/<job_id>` is an SSE stream of job log lines (including `Context.log` lines for mod runs), followed by an `event: done` record containing `{ "ok": true }` or `{ "ok": false, "error": "..." }`.
+
+The Install APK sidebar entry opens a dashed drop zone. Drop one or more APK files
+there, or click the zone to choose them; files are uploaded and installed one at a
+time, with each job's progress shown in the console panel.
 
 The GUI calls `embertools.core` directly; it does not invoke or replace the CLI.

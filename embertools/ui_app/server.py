@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import mimetypes
 import queue
+import shutil
+import tempfile
 import threading
 import uuid
 import webbrowser
@@ -15,6 +17,7 @@ from urllib.parse import unquote, urlparse
 from ..core.adb import Adb
 from ..core.device import Device
 from ..core.mod import Context, Status, discover
+from ..core import sideload
 from ..core.state import State
 
 UI_DIR = Path(__file__).resolve().parent
@@ -135,6 +138,28 @@ def _run_job(job_id: str, action: str, mod_name: str, supplied_opts: dict) -> No
         out.put({"kind": "done", "ok": False, "error": str(exc)})
 
 
+def _run_install_job(job_id: str, upload_dir: str, upload_path: str) -> None:
+    with _jobs_lock:
+        out = jobs[job_id]
+
+    def log(message: str) -> None:
+        out.put({"kind": "log", "line": str(message)})
+
+    try:
+        adb, _dev = _connect()
+        result = sideload.install_path(adb, upload_path, log=log)
+        summary = f"installed {len(result['installed'])}, failed {len(result['failed'])}"
+        out.put({"kind": "done", "ok": result["ok"], **({"error": summary} if not result["ok"] else {})})
+    except ConnectionProblem as exc:
+        log(f"no device: {exc}")
+        out.put({"kind": "done", "ok": False, "error": str(exc)})
+    except Exception as exc:
+        log(f"error: {exc}")
+        out.put({"kind": "done", "ok": False, "error": str(exc)})
+    finally:
+        shutil.rmtree(upload_dir, ignore_errors=True)
+
+
 def _json(handler: BaseHTTPRequestHandler, value: dict, status: int = 200) -> None:
     body = json.dumps(value).encode("utf-8")
     handler.send_response(status)
@@ -161,7 +186,11 @@ class Handler(BaseHTTPRequestHandler):
         self._static(path)
 
     def do_POST(self) -> None:  # noqa: N802
-        if urlparse(self.path).path != "/api/run":
+        path = urlparse(self.path).path
+        if path == "/api/install":
+            self._install_upload()
+            return
+        if path != "/api/run":
             _json(self, {"error": "not found"}, 404)
             return
         try:
@@ -187,6 +216,44 @@ class Handler(BaseHTTPRequestHandler):
             target=_run_job,
             args=(job_id, action, mod_name, opts),
             name=f"embertools-job-{job_id[:8]}",
+            daemon=True,
+        ).start()
+        _json(self, {"job_id": job_id})
+
+    def _install_upload(self) -> None:
+        filename = Path(self.headers.get("X-Filename", "")).name
+        if not filename or filename in (".", ".."):
+            _json(self, {"error": "X-Filename header is required"}, 400)
+            return
+        if Path(filename).suffix.lower() not in {".apk", ".apkm", ".xapk", ".apks"}:
+            _json(self, {"error": "filename must end in .apk, .apkm, .xapk, or .apks"}, 400)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "-1"))
+            if length < 0:
+                raise ValueError("Content-Length header is required")
+            body = self.rfile.read(length)
+            if len(body) != length:
+                raise ValueError("request body was shorter than Content-Length")
+        except (ValueError, TypeError) as exc:
+            _json(self, {"error": str(exc)}, 400)
+            return
+
+        upload_dir = tempfile.mkdtemp(prefix="embertools-install-")
+        upload_path = str(Path(upload_dir) / filename)
+        try:
+            Path(upload_path).write_bytes(body)
+        except Exception:
+            shutil.rmtree(upload_dir, ignore_errors=True)
+            raise
+
+        job_id = uuid.uuid4().hex
+        with _jobs_lock:
+            jobs[job_id] = queue.Queue()
+        threading.Thread(
+            target=_run_install_job,
+            args=(job_id, upload_dir, upload_path),
+            name=f"embertools-install-{job_id[:8]}",
             daemon=True,
         ).start()
         _json(self, {"job_id": job_id})

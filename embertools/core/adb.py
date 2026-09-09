@@ -60,13 +60,13 @@ class Adb:
         self.shell(f"settings delete secure {key}")
 
     def install(self, apk_path: str, *flags: str) -> str:
-        return self.raw("install", *flags, apk_path, timeout=180)
+        return self.raw("install", *flags, apk_path, timeout=180, check=True)
 
     def uninstall(self, pkg: str) -> str:
         return self.raw("uninstall", pkg)
 
     def push(self, local: str, remote: str) -> str:
-        return self.raw("push", local, remote, timeout=120)
+        return self.raw("push", local, remote, timeout=120, check=True)
 
     def pkg_installed(self, pkg: str) -> bool:
         return f"package:{pkg}" in self.shell(f"pm list packages {pkg}")

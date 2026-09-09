@@ -42,6 +42,7 @@ python3 main.py apply ota_block debloat private_dns keyboard --yes
 python3 main.py status
 python3 main.py revert                # interactive: pick what to undo
 python3 main.py revert all
+python3 main.py install path/to/app.apk path/to/splits.apkm
 ```
 
 (If installed with `pipx`/`pip`, the `embertools` command is equivalent to
@@ -50,7 +51,7 @@ python3 main.py revert all
 GUI — work in progress:
 
 ```bash
-python3 main.py --ui                  # opens the design mockup for now
+python3 main.py --ui                  # opens the GUI
 ```
 
 Install the launcher you want first (Nova / Lawnchair / …) from the Play Store or
@@ -68,6 +69,9 @@ APKMirror, then run `launcher_swap`.
 
 Every mod is idempotent and has `revert`. State is tracked per device in
 `~/.embertools/state/<serial>.json`.
+
+`install` is also available from the CLI and GUI for regular APKs, split-APK
+archives (`.apkm` / `.xapk` / `.apks`), and directory batches.
 
 ## How `launcher_swap` works
 
