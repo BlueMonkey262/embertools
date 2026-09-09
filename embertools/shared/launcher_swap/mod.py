@@ -191,44 +191,30 @@ class LauncherSwap(Mod):
         bound = self._a11y_bound(ctx)
         ctx.log(f"a11y bound: {'yes' if bound else 'NO'}")
         ctx.log(f"app-switch exemption: {exemption or 'NOT GRANTED -- re-run with --reboot'}")
-        verification = self.verify(ctx)
         ctx.state.mark_applied(self.meta.name,
                                {"launcher": ctx.opts.get("launcher", "nova"),
-                                "pkg": pkg, "activity": act, "helper_pkg": hp,
-                                "verified": verification.applied})
-        if verification.applied:
-            ctx.log(f"✓ verified: {verification.detail}")
-        else:
-            ctx.log(f"✗ NOT verified: {verification.detail}")
+                                "pkg": pkg, "activity": act, "helper_pkg": hp})
+        ctx.log("Press Home to check that the target launcher opens instantly.")
         if not (bound and exemption):
             ctx.log("Not fully active yet. Re-run:  python3 -m embertools apply launcher_swap --reboot")
-        if verification.applied:
-            if bound and exemption:
-                ctx.log("Done. Verified: Home opens the target launcher instantly.")
-            else:
-                ctx.log(f"Verified: Home opens {pkg}; service binding still needs --reboot.")
-        elif bound and exemption and not ctx.opts.get("reboot"):
-            ctx.log(f"Home is NOT opening {pkg} yet. Re-run with --reboot.")
-        else:
-            ctx.log(f"Home is NOT opening {pkg}. Re-run with --reboot, or check "
-                    f"{pkg} is really installed.")
 
     def verify(self, ctx) -> Status:
         pkg, _act = self._target(ctx)
         results = []
         last_package = ""
         last_error = ""
-        for attempt in range(6):
+        for attempt in range(3):
             try:
-                ctx.adb.shell("am start -n com.android.settings/.Settings")
-                time.sleep(0.25)
                 ctx.adb.shell("input keyevent KEYCODE_HOME")
-                time.sleep(2.5)
+                time.sleep(1.5)
                 output = ctx.adb.shell(
                     "dumpsys activity activities | grep -m1 mResumedActivity"
                 )
                 last_package = self._component_package(output)
-                results.append(last_package == pkg)
+                passed = last_package == pkg
+                results.append(passed)
+                if passed:
+                    return Status(True, f"Home opens {pkg}")
             except Exception as exc:
                 last_error = str(exc)
                 results.append(False)

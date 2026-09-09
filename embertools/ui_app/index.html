@@ -56,7 +56,7 @@ function mainPane(m){
   const risk=m.risk||"low";const chip=applied?"applied":risk!=="low"?risk+" risk":"available";
   const fields=(m.options||[]).map(o=>optionField(o,m)).join("");
   const form=fields?`<div class="form">${fields}<div class="divider"></div><div class="risk-line"><span class="risk ${esc(risk)}">${esc(risk)} risk</span><span>${m.reversible?"Fully reversible.":"This action cannot be reverted by embertools."}</span></div></div>`:`<div class="form"><div class="risk-line"><span class="risk ${esc(risk)}">${esc(risk)} risk</span><span>${m.reversible?"Fully reversible.":"This action cannot be reverted by embertools."}</span></div></div>`;
-  return `<div class="main-scroll"><div class="crumb"><b>${esc(m.name)}</b> · ${esc(m.status?.detail||chip)}</div><div class="title-row"><h1>${esc(m.name)}</h1><span class="chip ${applied?"applied":risk!=="low"?"warn":""}">${esc(chip)}</span></div><p class="lead">${esc(m.summary)}</p>${form}${outputPanel()}</div><div class="actionbar"><span class="status">${running?"Working…":applied?"Applied via embertools":"Ready"} · ${esc(appState.device.model||"")}</span><span class="spacer"></span>${applied&&m.reversible?'<button class="btn btn-secondary" id="revert">Revert</button>':""}<button class="btn btn-primary" id="apply" ${running?"disabled":""}>${running?'<span class="spinner"></span>Running':"Apply"}</button></div>`;
+  return `<div class="main-scroll"><div class="crumb"><b>${esc(m.name)}</b> · ${esc(m.status?.detail||chip)}</div><div class="title-row"><h1>${esc(m.name)}</h1><span class="chip ${applied?"applied":risk!=="low"?"warn":""}">${esc(chip)}</span></div><p class="lead">${esc(m.summary)}</p>${form}${outputPanel()}</div><div class="actionbar"><span class="status">${running?"Working…":applied?"Applied via embertools":"Ready"} · ${esc(appState.device.model||"")}</span><span class="spacer"></span>${applied&&m.reversible?`<button class="btn btn-secondary" id="revert" ${running?"disabled":""}>Revert</button>`:""}${applied&&m.has_verify?`<button class="btn btn-secondary" id="verify" ${running?"disabled":""}>Verify</button>`:""}<button class="btn btn-primary" id="apply" ${running?"disabled":""}>${running?'<span class="spinner"></span>Running':"Apply"}</button></div>`;
 }
 function installPane(){return `<div class="main-scroll"><div class="crumb"><b>Install APK</b> · sideload over ADB</div><div class="title-row"><h1>Install APK</h1><span class="chip">ready</span></div><p class="lead">Install a regular APK or a split-APK archive. Multiple files are processed one at a time.</p><div class="drop-zone" id="drop-zone"><div>Drop .apk / .apkm / .xapk / .apks files here, or click to choose</div><input id="apk-files" type="file" multiple accept=".apk,.apkm,.xapk,.apks"><button class="btn btn-primary" id="choose-apks" ${running?"disabled":""}>Choose files</button></div>${outputPanel()}</div><div class="actionbar"><span class="status">${running?"Installing…":"Ready"} · ${esc(appState.device.model||"")}</span><span class="spacer"></span></div>`}
 function devicePane(){
@@ -83,6 +83,7 @@ function readOptions(m){
 function wirePane(m){
   $("#apply").onclick=()=>run("apply",m);
   const revert=$("#revert");if(revert)revert.onclick=()=>run("revert",m);
+  const verify=$("#verify");if(verify)verify.onclick=()=>run("verify",m);
   const consoleBox=$("#console");if(consoleBox)consoleBox.scrollTop=consoleBox.scrollHeight;
 }
 function wireDevicePane(){
@@ -102,11 +103,12 @@ function wireInstallPane(){
   zone.addEventListener("drop",event=>{if(!running)installFiles(event.dataTransfer.files)});
   const consoleBox=$("#console");if(consoleBox)consoleBox.scrollTop=consoleBox.scrollHeight;
 }
-function streamJob(jobId){return new Promise((resolve,reject)=>{
+function streamJob(jobId,releaseRunning=true){return new Promise((resolve,reject)=>{
   const source=new EventSource(`/api/stream/${encodeURIComponent(jobId)}`);let finished=false;
+  const finish=callback=>{if(finished)return;finished=true;source.close();if(releaseRunning){running=false;render()}callback()};
   source.onmessage=event=>{runLog.push(JSON.parse(event.data));render()};
-  source.onerror=()=>{if(!finished){source.close();reject(new Error("Job stream disconnected"))}};
-  source.addEventListener("done",event=>{finished=true;const result=JSON.parse(event.data);source.close();resolve(result)});
+  source.onerror=()=>finish(()=>reject(new Error("Job stream disconnected")));
+  source.addEventListener("done",event=>{const result=JSON.parse(event.data);finish(()=>resolve(result))});
 })}
 async function installFiles(fileList){
   if(running)return;const files=Array.from(fileList||[]);if(!files.length)return;
@@ -115,7 +117,7 @@ async function installFiles(fileList){
     runLog.push(`\n${file.name}`);render();
     const response=await fetch("/api/install",{method:"POST",body:file,headers:{"Content-Type":"application/octet-stream","X-Filename":file.name}});
     const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not start install");
-    const result=await streamJob(data.job_id);if(!result.ok)runLog.push(result.error||"Install failed");render();
+    const result=await streamJob(data.job_id,false);if(!result.ok)runLog.push(result.error||"Install failed");render();
   }}catch(e){runLog.push(String(e))}finally{running=false;render()}
 }
 async function loadPackages(){
@@ -124,7 +126,7 @@ async function loadPackages(){
 }
 async function runDevice(action,pkg,power_action){
   if(running)return;selectedName="__device__";runLog=[];running=true;render();
-  try{const response=await fetch("/api/device",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,pkg,power_action})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not start device action");const result=await streamJob(data.job_id);if(!result.ok)runLog.push(result.error||"Device action failed")}catch(e){runLog.push(String(e))}finally{running=false;if(action!=="power")await loadPackages();else render()}
+  try{const response=await fetch("/api/device",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,pkg,power_action})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not start device action");const result=await streamJob(data.job_id,false);if(!result.ok)runLog.push(result.error||"Device action failed")}catch(e){runLog.push(String(e))}finally{running=false;if(action!=="power")await loadPackages();else render()}
 }
 $("#close-window").onclick=()=>{if(window.pywebview?.api?.close)pywebview.api.close();else window.close()};
 async function run(action,m){
@@ -137,9 +139,11 @@ async function run(action,m){
   try{
     const response=await fetch("/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,mod:m.name,opts:formValues})});
     const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not start job");
-    const source=new EventSource(`/api/stream/${encodeURIComponent(data.job_id)}`);
+    const source=new EventSource(`/api/stream/${encodeURIComponent(data.job_id)}`);let finished=false;
+    const finish=async callback=>{if(finished)return;finished=true;source.close();running=false;await callback()};
     source.onmessage=event=>{runLog.push(JSON.parse(event.data));render()};
-    source.addEventListener("done",async event=>{const result=JSON.parse(event.data);if(!result.ok)runLog.push(result.error||"Job failed");source.close();running=false;await loadState()});
+    source.onerror=()=>finish(async()=>{runLog.push("Job stream disconnected");render()});
+    source.addEventListener("done",event=>finish(async()=>{const result=JSON.parse(event.data);if(action==="revert")formValues={};if(!result.ok)runLog.push(result.error||"Job failed");await loadState()}));
   }catch(e){runLog.push(String(e));running=false;render()}
 }
 loadState();

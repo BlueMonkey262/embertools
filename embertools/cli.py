@@ -90,7 +90,8 @@ def cmd_apply(args):
         print(f"  {ui.ORANGE}▶ {m.meta.name}{ui.RESET}")
         try:
             m.apply(ctx)
-            if type(m).verify is not Mod.verify:
+            if (type(m).verify is not Mod.verify and not args.no_verify
+                    and (args.reboot or args.verify)):
                 verification = m.verify(ctx)
                 mark = "✓" if verification.applied else "✗"
                 color = ui.GREEN if verification.applied else ui.RED
@@ -189,6 +190,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="keyboard mod: heliboard | florisboard | unexpected | thumbkey | "
                          "anysoftkeyboard | simple | gboard")
     ap.add_argument("--reboot", action="store_true", help="reboot where a mod recommends it")
+    ap.add_argument("--verify", action="store_true", help="verify mods after applying")
+    ap.add_argument("--no-verify", action="store_true", help="skip post-apply verification")
     ap.add_argument("--yes", action="store_true", help="don't prompt on medium/high-risk mods")
     ap.add_argument("--keep-going", action="store_true", help="continue if a mod fails")
     ap.set_defaults(func=cmd_apply)

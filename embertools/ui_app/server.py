@@ -88,6 +88,7 @@ def _state_payload() -> dict:
             "risk": mod.meta.risk,
             "reversible": mod.meta.reversible,
             "needs_build": mod.meta.needs_build,
+            "has_verify": type(mod).verify is not Mod.verify,
             "options": mod.meta.options,
             "status": {"applied": status.applied, "detail": status.detail},
             "applied_via_embertools": state.is_applied(mod.meta.name),
@@ -143,11 +144,11 @@ def _run_job(job_id: str, action: str, mod_name: str, supplied_opts: dict) -> No
         if action == "apply":
             mod.apply(ctx)
             ok = True
-            if type(mod).verify is not Mod.verify:
-                verification = mod.verify(ctx)
-                mark = "✓" if verification.applied else "✗"
-                log(f"{mark} {verification.detail}")
-                ok = verification.applied is not False
+        elif action == "verify":
+            verification = mod.verify(ctx)
+            mark = "✓" if verification.applied else "✗"
+            log(f"{mark} {verification.detail}")
+            ok = verification.applied is not False
         else:
             mod.revert(ctx)
             ok = True
@@ -258,8 +259,8 @@ class Handler(BaseHTTPRequestHandler):
             action = payload.get("action")
             mod_name = payload.get("mod")
             opts = payload.get("opts") or {}
-            if action not in ("apply", "revert") or not isinstance(mod_name, str):
-                raise ValueError("action must be apply or revert and mod is required")
+            if action not in ("apply", "revert", "verify") or not isinstance(mod_name, str):
+                raise ValueError("action must be apply, revert, or verify and mod is required")
             if not isinstance(opts, dict):
                 raise ValueError("opts must be an object")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -362,22 +363,29 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "close")
         self.end_headers()
-        while True:
-            try:
-                event = out.get(timeout=15)
-            except queue.Empty:
-                self.wfile.write(b": keepalive\n\n")
+        completed = False
+        try:
+            while True:
+                try:
+                    event = out.get(timeout=15)
+                except queue.Empty:
+                    self.wfile.write(b": keepalive\n\n")
+                    self.wfile.flush()
+                    continue
+                if event["kind"] == "log":
+                    data = json.dumps(event["line"])
+                    self.wfile.write(f"data: {data}\n\n".encode("utf-8"))
+                else:
+                    data = json.dumps({k: v for k, v in event.items() if k != "kind"})
+                    self.wfile.write(f"event: done\ndata: {data}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                    completed = True
+                    return
                 self.wfile.flush()
-                continue
-            if event["kind"] == "log":
-                data = json.dumps(event["line"])
-                self.wfile.write(f"data: {data}\n\n".encode("utf-8"))
-            else:
-                data = json.dumps({k: v for k, v in event.items() if k != "kind"})
-                self.wfile.write(f"event: done\ndata: {data}\n\n".encode("utf-8"))
-                self.wfile.flush()
-                return
-            self.wfile.flush()
+        finally:
+            if completed:
+                with _jobs_lock:
+                    jobs.pop(job_id, None)
 
     def _static(self, path: str) -> None:
         relative = Path(unquote(path.lstrip("/"))) if path != "/" else Path("index.html")

@@ -68,21 +68,29 @@ class LauncherSwapTests(unittest.TestCase):
         self.assertEqual(adb.install_calls, [])
 
     @patch("embertools.shared.launcher_swap.mod.time.sleep")
-    def test_verify_passes_for_target_launcher(self, _sleep):
+    def test_verify_passes_for_target_launcher_without_opening_settings(self, sleep):
+        adb = FakeAdb(installed=("app.lawnchair",), dumpsys_package="app.lawnchair")
         status = LauncherSwap().verify(
-            context(FakeAdb(installed=("app.lawnchair",), dumpsys_package="app.lawnchair"))
+            context(adb)
         )
         self.assertEqual(status, Status(True, "Home opens app.lawnchair"))
+        self.assertEqual(adb.calls.count("input keyevent KEYCODE_HOME"), 1)
+        self.assertFalse(any(call.startswith("am start -n com.android.settings") for call in adb.calls))
+        sleep.assert_called_once_with(1.5)
 
     @patch("embertools.shared.launcher_swap.mod.time.sleep")
-    def test_verify_fails_for_other_launcher(self, _sleep):
+    def test_verify_fails_after_three_home_checks(self, sleep):
+        adb = FakeAdb(installed=("app.lawnchair",), dumpsys_package="com.amazon.firelauncher")
         status = LauncherSwap().verify(
-            context(FakeAdb(installed=("app.lawnchair",), dumpsys_package="com.amazon.firelauncher"))
+            context(adb)
         )
         self.assertEqual(status, Status(
             False,
             "Home opened com.amazon.firelauncher instead of app.lawnchair",
         ))
+        self.assertEqual(adb.calls.count("input keyevent KEYCODE_HOME"), 3)
+        self.assertEqual(sleep.call_count, 3)
+        self.assertTrue(all(call.args == (1.5,) for call in sleep.call_args_list))
 
     def test_launcher_keys(self):
         self.assertEqual(
