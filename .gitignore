@@ -17,3 +17,6 @@ dist/
 
 # agent worktrees
 .worktrees/
+
+# local planning notes, not published
+ROADMAP.md

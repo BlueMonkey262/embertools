@@ -4,15 +4,15 @@ A modular, **no-root** toolkit for reclaiming Amazon Fire tablets: replace the
 launcher, strip Amazon apps, block ads, stop forced updates. ADB only; no
 bootloader unlock, no `/system` changes.
 
-> Status: early. Fully tested on the **Fire HD 10 2019 (KFMAWI)** / Fire OS 7.3.3.1.
-> Other Fire OS 7 devices are wired up but need testers. Fire OS 8 is rough
-> (fine on 4+ year-old units, expect breakage on the newest).
+> **Status: early, tested on exactly one device** — Fire HD 10 2019 (KFMAWI),
+> Fire OS 7.3.3.1. It targets **Fire OS 7** (Android 9). Everything else is
+> untested — see [Help wanted](#help-wanted).
 
 ## Why
 
 Fire Toolbox is Windows-only and closed; Fire-Tools is effectively unmaintained
 and its launcher method no longer works on current Fire OS 7. embertools' headline
-trick: it makes a third-party launcher the **instant** default on locked Fire OS
+trick: it makes a third-party launcher the **instant** default on locked Fire OS 7
 by registering a tiny helper as the device's *assistant*, which grants it the
 same "launch over anything" exemption assistants get. That sidesteps the 5-second
 post-Home app-switch lock that makes every LauncherHijack-style tool feel broken.
@@ -59,6 +59,8 @@ Install the launcher you want first (Nova, Lawnchair, ...) from the Play Store o
 APKMirror, then run `launcher_swap`.
 
 ## Mods
+
+Built and tested against Fire OS 7 (Fire HD 10 2019).
 
 | mod | what it does | risk |
 |---|---|---|
@@ -121,43 +123,35 @@ rule against widening `supported` to "make it match": don't.
 If you use a coding agent to prepare a PR, see [`AGENTS.md`](AGENTS.md). The
 agent must walk you through exactly what it's submitting before opening it.
 
-### Help wanted: device coverage
+## Help wanted
 
-**Own a Fire tablet that isn't fully supported? Please test the mods on it and
-send a PR.** Most of the work is running four commands and reporting what
-happened. You don't need to write code:
+**This has been tested on one tablet.** If you have any other Fire tablet, please
+try the mods and report back. Most of the work is running a few commands and
+saying what happened; you don't need to write code:
 
 ```bash
 python3 main.py list                       # does it detect your model?
 python3 main.py apply debloat --yes        # then: status, revert, status
 python3 main.py apply private_dns --yes    # same
 python3 main.py apply keyboard --keyboard heliboard   # same
-python3 main.py apply launcher_swap --launcher <yours> --reboot   # Fire OS 7 only
+python3 main.py apply launcher_swap --launcher <yours> --reboot   # Fire OS 7
 ```
 
-Then add your device to
-[`embertools/models/registry.py`](embertools/models/registry.py) and each mod's
-`supported` list, and open a PR noting your model, Fire OS version, and what
-worked. Used Fire tablets are $10-15 on Marketplace or free in Buy Nothing groups
-if you want to cover a version you don't own.
+Then open an issue (or a PR adding your device to
+[`registry.py`](embertools/models/registry.py) and the mods' `supported` lists)
+with your model, Fire OS version, and what worked or broke.
 
-**Scope:** Fire OS **5 through 8**, i.e. every Android-based Fire *tablet*
-(roughly 2015-2024 hardware), with graded confidence:
+- **Most wanted:** other Fire OS 7 devices (Fire HD 8 2018/2020, Fire 7 2019,
+  Fire HD 10 2021) — the launcher method should port there with little or no
+  change.
+- **Also wanted:** Fire OS 5 and 6 (2015-2018 tablets). `launcher_swap` isn't
+  needed there (`pm disable-user com.amazon.firelauncher` still works), but the
+  other mods should, and a simpler legacy launcher mod would be easy to add.
+- **Fire OS 8** (2022+): unknown. Android 11 changed background-activity rules
+  and adds a "restricted setting" gate on accessibility services. Reports
+  welcome.
 
-- **Fire OS 5-7** (2015-2021): solid. Amazon has stopped patching these and the
-  methods are stable.
-- **Fire OS 8** (2022-2024): rougher. The mechanisms mostly hold, but Amazon
-  still ships updates to the newest units and things break. Rule of thumb: if
-  your tablet is **4+ years old it should be fine**; if it's from the last year
-  or two, expect to fix a few things and file issues.
-
-Once you have a device on an old Fire OS, run `ota_block` and don't let it
-update, so it stays a reference for that version.
-
-Not in scope: Fire OS 14/16 (those are Fire **TV**, renumbered to match the
-Android version), Vega OS (Amazon's Linux OS for cheap devices), and the
-rumored AOSP-Android high-end tablet (plain Android sets a launcher the normal
-way, so it won't need `launcher_swap`).
+Used Fire tablets are $10-15 on Marketplace or free in Buy Nothing groups.
 
 ## Disclaimer
 
